@@ -52,7 +52,7 @@ resource "aws_sfn_state_machine" "channeler" {
       "Parameters": {
         "StateMachineArn": "${local.state_machine_arn}",
         "Input.$": "$",
-        "Name.$": "States.Format('{}_{}', $.app_name, $.channel_id)"
+        "Name.$": "States.Format('{}_{}', $.application, $.channel_id)"
       },
       "End": true
     }

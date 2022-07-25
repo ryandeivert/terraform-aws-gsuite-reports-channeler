@@ -48,7 +48,7 @@ class TestChanneler:
         )
 
         assert result == {
-            'app_name': TEST_APP_NAME,
+            'application': TEST_APP_NAME,
             'expiration': '2022-07-20T12:24:34+00:00',
             'true_deadline': '2022-07-20T12:39:34+00:00',
             'resource_id': 'o3hgv1538sdjfh',

@@ -16,7 +16,8 @@ locals {
 }
 
 module "channeler" {
-  source           = "ryandeivert/gsuite-logs-channeler/aws"
+  source = "ryandeivert/gsuite-reports-channeler/aws"
+
   prefix           = local.prefix
   delegation_email = "svc-acct-email@domain.com"
 
@@ -25,5 +26,5 @@ module "channeler" {
 
   # NOTE: the above secret MUST be added to Secrets Manager before the below list
   # can have any entries. Otherwise applies will fail until the secret is available.
-  app_names = ["admin"]
+  applications = ["admin"]
 }

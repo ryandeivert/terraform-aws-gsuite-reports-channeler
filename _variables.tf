@@ -25,8 +25,8 @@ variable "log_level" {
   default     = "INFO"
 }
 
-variable "app_names" {
+variable "applications" {
   type        = list(string)
-  description = "List of app names for which logging channels should be created. See: https://developers.google.com/admin-sdk/reports/reference/rest/v1/activities/watch#ApplicationName"
+  description = "List of applications names for which logging channels should be created. See: https://developers.google.com/admin-sdk/reports/reference/rest/v1/activities/watch#ApplicationName"
   default     = []
 }

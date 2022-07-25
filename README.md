@@ -1,4 +1,4 @@
-# GSuite Logs Channeler
+# GSuite Reports Channeler
 
 Lightweight serverless pipeline, leveraging AWS Lambda and Step Functions,
 to collect Google Workspace Admin Report logs via [Push Notifications](https://developers.google.com/admin-sdk/reports/v1/guides/push).
@@ -30,10 +30,11 @@ with the contents of the JWT file that was downloaded in above setup.
 
 ```hcl
 module "channeler" {
-  source = "ryandeivert/gsuite-logs-channeler/aws"
+  source = "ryandeivert/gsuite-reports-channeler/aws"
+
   delegation_email = "svc-acct-email@domain.com"
   secret_name      = "google-reports-jwt" # name of secret from setup above
-  app_names        = ["drive", "admin", "calendar", "token"]
+  applications     = ["drive", "admin", "calendar", "token"]
 }
 ```
 
@@ -56,7 +57,7 @@ The overall process looks something like:
     * 2 Lambda functions: one for renewing channels, and one the act as an HTTPS endpoint
     * Step Function with the main purpose of "waiting" for channel expiration
 2. As part of the Terraform apply process, the `channel_renewer` Lambda is invoked with some
-basic metadata (eg: `app_name`).
+basic metadata (eg: `application`).
 3. The **first** invocation of the `channel_renewer` opens the first channel and immediately
 executes the Step Function with the necessary channel metadata.
     * A separate Step Function execution occurs for _each_ app specified.

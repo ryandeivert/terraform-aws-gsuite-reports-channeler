@@ -47,7 +47,7 @@ def handler(event, _):
         Message=json.dumps(body, separators=(',', ':')),
         # Add some message attributes to support SNS subscription filtering
         MessageAttributes={
-            'app_name': {
+            'application': {
                 'DataType': 'String',
                 'StringValue': body['id']['applicationName']
             },

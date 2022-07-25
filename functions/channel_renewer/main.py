@@ -94,7 +94,7 @@ class Channeler:
 
         delta = exp - timedelta(minutes=int(os.environ.get('REFRESH_THRESHOLD_MIN', 15)))
         return {
-            'app_name': app_name,
+            'application': app_name,
             'expiration': delta.isoformat(),
             'true_deadline': exp.isoformat(),
             'resource_id': result['resourceId'],
@@ -116,7 +116,7 @@ def _init_step_function(channel_info):
     response = boto3.client('stepfunctions').start_execution(
         stateMachineArn=os.environ['STATE_MACHINE_ARN'],
         input=json.dumps(channel_info),
-        name=f'{channel_info["app_name"]}_{channel_info["channel_id"]}',
+        name=f'{channel_info["application"]}_{channel_info["channel_id"]}',
     )
 
     LOGGER.info('Started step function: %s', response)
@@ -133,7 +133,7 @@ def handler(event, _):
 
     Example event:
         {
-            "app_name": "<app-name>",
+            "application": "<app-name>",
             "resource_id": "<resource-id>",
             "channel_id": "<channel-id>",
             "expiration": "<expiration>"
@@ -149,7 +149,7 @@ def handler(event, _):
 
     # Create a new channel. This should occur before any old channels are stopped
     channel_info = client.create_channel(
-        event['app_name'],
+        event['application'],
         os.environ['LAMBDA_URL'],
         os.environ['CHANNEL_TOKEN']
     )

@@ -24,7 +24,7 @@ resource "aws_glue_catalog_table" "logs" {
     "projection.enabled" = "true"
 
     # injected partitions
-    "projection.app_name.type" = "injected" # must be supplied at query time
+    "projection.application.type" = "injected" # must be supplied at query time
 
     # date partition
     "projection.day.type"          = "date"
@@ -38,7 +38,7 @@ resource "aws_glue_catalog_table" "logs" {
     "projection.hour.range"  = "0,23"
     "projection.hour.digits" = "2"
 
-    "storage.location.template" = "s3://${var.s3_bucket_name}/${var.table_name}/$${app_name}/$${day}/$${hour}/"
+    "storage.location.template" = "s3://${var.s3_bucket_name}/${var.table_name}/$${application}/$${day}/$${hour}/"
   }
 
   storage_descriptor {
@@ -61,7 +61,7 @@ resource "aws_glue_catalog_table" "logs" {
   }
 
   partition_keys {
-    name = "app_name"
+    name = "application"
     type = "string"
   }
 

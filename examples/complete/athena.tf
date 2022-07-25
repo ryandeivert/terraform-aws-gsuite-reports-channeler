@@ -14,7 +14,7 @@ NOTE: This is an example and should be modified to suit specific requirements
 */
 
 module "athena" {
-  source = "ryandeivert/gsuite-logs-channeler/aws//modules/athena"
+  source = "ryandeivert/gsuite-reports-channeler/aws//modules/athena"
 
   prefix         = local.prefix
   table_name     = "all-logs"
