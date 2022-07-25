@@ -16,21 +16,21 @@ resource "aws_sfn_state_machine" "channeler" {
 
   definition = <<EOF
 {
-  "Comment": "GSuite channel refresher step function",
+  "Comment": "GSuite channel renewer step function",
   "StartAt": "Wait for Expiration",
   "States": {
     "Wait for Expiration": {
       "Type": "Wait",
-      "Next": "Invoke Refresher Function",
+      "Next": "Invoke Renewer Function",
       "TimestampPath": "$.expiration"
     },
-    "Invoke Refresher Function": {
+    "Invoke Renewer Function": {
       "Type": "Task",
       "Resource": "arn:aws:states:::lambda:invoke",
       "OutputPath": "$.Payload",
       "Parameters": {
         "Payload.$": "$",
-        "FunctionName": "${module.channel_refresher_function_alias.lambda_alias_arn}"
+        "FunctionName": "${module.channel_renewer_function_alias.lambda_alias_arn}"
       },
       "Retry": [
         {
@@ -50,7 +50,7 @@ resource "aws_sfn_state_machine" "channeler" {
       "Type": "Task",
       "Resource": "arn:aws:states:::states:startExecution",
       "Parameters": {
-        "StateMachineArn": "${local.step_function_arn}",
+        "StateMachineArn": "${local.state_machine_arn}",
         "Input.$": "$",
         "Name.$": "States.Format('{}_{}', $.app_name, $.channel_id)"
       },
@@ -89,7 +89,7 @@ data "aws_iam_policy_document" "lambda_sfn" {
   statement {
     effect    = "Allow"
     actions   = ["lambda:InvokeFunction"]
-    resources = [module.channel_refresher_function_alias.lambda_alias_arn]
+    resources = [module.channel_renewer_function_alias.lambda_alias_arn]
   }
   statement {
     effect    = "Allow"

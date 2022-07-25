@@ -7,7 +7,7 @@ TEST_APP_NAME = 'foo_app'
 TEST_URL = 'https://foo.lambda.url'
 
 with mock.patch.dict(os.environ, {'CHANNEL_TOKEN': TEST_TOKEN}):
-    from channel_refresher import main
+    from channel_renewer import main
 
 
 class TestChanneler:
