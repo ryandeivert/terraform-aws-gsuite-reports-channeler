@@ -1,62 +1,40 @@
-# Complete Example, Athena Table
+# Complete Example, with Athena Table
 
-This is meant to be used in conjunction with the an instance of the
-[channeler module](https://github.com/ryandeivert/terraform-aws-gsuite-reports-channeler).
+This example creates the required channeler module, as well as an instance
+of the `athena` submodule for searching the resulting logs.
 
-For the below examples, assume a configuration such as the one below exists:
+A few dependent resources are also created that these modules directly, or indirectly, use:
+* KMS key + alias used for encrypting the Secrets Manager secret
+  * This is used to encrypt the contents of the Google JWT credentials file
+  * The KMS key's policy allows Secrets Manager to decrypt the key
+* S3 bucket, and KMS key for object encryption, used by Firehose for data storage and by Athena for searching logs
+
+## Channeler Module
 ```hcl
 module "channeler" {
   source = "ryandeivert/gsuite-reports-channeler/aws"
 
+  prefix           = local.prefix
   delegation_email = "svc-acct-email@domain.com"
-  secret_name      = "google-reports-jwt"
-  applications     = ["drive", "admin", "calendar", "token"]
+
+  # NOTE: this secret was manually added to secrets manager
+  secret_name = "google-reports-jwt"
+
+  # NOTE: the above secret MUST be added to Secrets Manager before the below list
+  # can have any entries. Otherwise applies will fail until the secret is available.
+  applications = ["admin"]
 }
 ```
 
-## Usage
-
-### All logs from all enabled apps
+## Athena Submodule
 ```hcl
 module "athena" {
   source = "ryandeivert/gsuite-reports-channeler/aws//modules/athena"
 
-  prefix         = "<custom-prefix>"
+  prefix         = local.prefix
   table_name     = "all-logs"
-  s3_bucket_name = "<s3-bucket-name>"
-  s3_sse_kms_arn = "<s3-kms-key-arn>"
-  sns_topic_arn  = module.channeler.sns_topic_arn # channeler module instance
-}
-```
-
-### Only logs from admin and token apps
-```hcl
-module "athena" {
-  source = "ryandeivert/gsuite-reports-channeler/aws//modules/athena"
-
-  prefix         = "<custom-prefix>"
-  table_name     = "admin-and-token-logs"
-  s3_bucket_name = "<s3-bucket-name>"
-  s3_sse_kms_arn = "<s3-kms-key-arn>"
-  sns_topic_arn  = module.channeler.sns_topic_arn # channeler module instance
-  filter_policy = jsonencode({
-    application = ["admin", "token"]
-  })
-}
-```
-
-### Logs from all apps for user "important@domain.com"
-```hcl
-module "athena" {
-  source = "ryandeivert/gsuite-reports-channeler/aws//modules/athena"
-
-  prefix         = "<custom-prefix>"
-  table_name     = "important-user-logs"
-  s3_bucket_name = "<s3-bucket-name>"
-  s3_sse_kms_arn = "<s3-kms-key-arn>"
-  sns_topic_arn  = module.channeler.sns_topic_arn # channeler module instance
-  filter_policy = jsonencode({
-    actor_email = ["important@domain.com"]
-  })
+  s3_bucket_name = module.s3_bucket.s3_bucket_id # bucket created for storing logs
+  s3_sse_kms_arn = aws_kms_key.s3.arn            # kms key for encrypting objects in above bucket
+  sns_topic_arn  = module.channeler.sns_topic_arn
 }
 ```

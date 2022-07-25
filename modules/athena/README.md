@@ -1,6 +1,6 @@
 # Athena Table for GSuite Logs
 
-This is meant to be used in conjunction with the an instance of the
+This is meant to be used in conjunction with an instance of the
 [channeler module](https://github.com/ryandeivert/terraform-aws-gsuite-reports-channeler).
 
 For the below examples, assume a configuration such as the one below exists:
