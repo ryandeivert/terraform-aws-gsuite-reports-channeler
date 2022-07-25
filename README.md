@@ -72,3 +72,41 @@ returned to the Step Function execution.
 7. The existing Step Function execution receives the new channel metadata, and starts another
 execution of the Step Function with this new input.
 8. Steps 4-7 above repeat until otherwise interrupted (eg: manually stopped).
+
+## Caveats
+
+### Duplicate Records
+
+The renewal of channels happens before old channels are "stopped". This is by design and
+is intended to ensure there is no gaps in data received. However, as a result of this,
+there may be a small amount of data sent to both active channels that exist alongside each
+other for the minuscule duration of time the passes before the old channel is stopped.
+
+Therefore, it is best to perform deduplication of records on the consumer side (eg: via SQL query).
+
+Some potential solutions could be:
+* Switch to FIFO SNS Topic and use [message deduplication](https://docs.aws.amazon.com/sns/latest/dg/fifo-message-dedup.html)
+  * A FIFO topic is not used now because it is unlikely to handle the required throughput.
+  [300 messages per second](https://docs.aws.amazon.com/general/latest/gr/sns.html) is the maximum
+  throughput at the time of writing.
+* suggestions welcome!
+
+### Removing an "application"
+
+As part of the normal operating process, new channels are created and old channels are
+automatically and appropriately stopped in a perpetual cycle. The Step Function state
+machine itself maintains the only reference to the state of the channel(s). This avoids
+the need to store any state externally, and avoids the need to use any sort of cron-based
+approach to handle renewal of channels.
+
+Because of this, if you decided you would like to stop receiving events for a given application,
+removing it from the list of `applications` will not suffice. Once the pipeline is active for a
+specific application, the respective Step Function execution for the application(s) that you would
+like to stop receiving events for will have to be stopped manually.
+
+The Step Function execution IDs are prefixed with the application name, followed by a UUID. For
+example, a Step Function execution handling the `admin` application will look something like:
+`admin_bd003813-4857-489a-8dfc-4502aed85988`. The UUID is the ID of the currently active channel.
+
+Note that since channels themselves have a maximum lifespan of [21600 seconds](https://developers.google.com/admin-sdk/reports/v1/guides/push#optional-properties) (6 hours), you can either let the channel die organically or manually
+stop it using the API.
