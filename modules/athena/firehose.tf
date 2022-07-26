@@ -21,8 +21,8 @@ resource "aws_kinesis_firehose_delivery_stream" "s3" {
     # requires dynamic partitioning to be enabled for this Firehose (see below)
     # The resulting date/time partitioning format is YYYY/MM/DD/HH
     # Reference: https://docs.aws.amazon.com/athena/latest/ug/partition-projection-kinesis-firehose-example.html#partition-projection-kinesis-firehose-example-iso-formatted-dates
-    prefix              = "${var.table_name}/!{partitionKeyFromQuery:application}/!{partitionKeyFromQuery:dt}/"
-    error_output_prefix = "${var.table_name}_failures/!{firehose:error-output-type}/"
+    prefix              = "${local.table_location}/!{partitionKeyFromQuery:application}/!{partitionKeyFromQuery:dt}/"
+    error_output_prefix = "${local.table_location}_failures/!{firehose:error-output-type}/"
 
     dynamic_partitioning_configuration {
       enabled = true # this setting cannot be toggled post-creation

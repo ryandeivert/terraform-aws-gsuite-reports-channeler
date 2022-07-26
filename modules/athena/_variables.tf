@@ -24,6 +24,12 @@ variable "s3_sse_kms_arn" {
   description = "KMS ARN use for encrypting objects in S3 bucket provided in s3_bucket_name variable"
 }
 
+variable "s3_prefix" {
+  type        = string
+  description = "Prefix at which data (table) should reside inside the specified S3 bucket"
+  default     = ""
+}
+
 variable "table_name" {
   type        = string
   description = "Resulting table name to be created in specified database variable"

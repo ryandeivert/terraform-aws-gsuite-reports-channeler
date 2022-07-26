@@ -70,11 +70,11 @@ resource "aws_glue_catalog_table" "logs" {
     "projection.dt.interval"      = "1"
     "projection.dt.interval.unit" = "HOURS"
 
-    "storage.location.template" = "s3://${var.s3_bucket_name}/${var.table_name}/$${application}/$${dt}/"
+    "storage.location.template" = "s3://${var.s3_bucket_name}/${local.table_location}/$${application}/$${dt}/"
   }
 
   storage_descriptor {
-    location      = "s3://${var.s3_bucket_name}/${var.table_name}"
+    location      = "s3://${var.s3_bucket_name}/${local.table_location}"
     input_format  = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"
     output_format = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"
 
