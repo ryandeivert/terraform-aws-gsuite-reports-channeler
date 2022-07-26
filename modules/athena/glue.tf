@@ -13,7 +13,40 @@ locals {
     "id"          = "struct<applicationname:string,customerid:string,time:string,uniquequalifier:bigint>"
     "events"      = "array<struct<type:string,name:string,parameters:array<string>>>"
   }
+
+  # The current existing set, plus any user supplied apps
+  all_apps = setunion([
+    "access_transparency",
+    "admin",
+    "calendar",
+    "chat",
+    "drive",
+    "gcp",
+    "gplus",
+    "groups",
+    "groups_enterprise",
+    "jamboard",
+    "login",
+    "meet",
+    "mobile",
+    "rules",
+    "saml",
+    "token",
+    "user_accounts",
+    "context_aware_access",
+    "chrome",
+    "data_studio",
+    "keep",
+    # Occasionally the id.applicationName value in a log is empty, so partition as "unknown"
+    # NOTE: This appears to be specific to the "chrome" application, which omits this field
+    # when returning events through the "watch" API, but includes it when using the "list" API
+    "unknown",
+    ],
+    var.extra_applications
+  )
 }
+
+resource "time_static" "current" {}
 
 resource "aws_glue_catalog_table" "logs" {
   name          = var.table_name
@@ -23,22 +56,21 @@ resource "aws_glue_catalog_table" "logs" {
     "classification"     = "parquet"
     "projection.enabled" = "true"
 
-    # injected partitions
-    "projection.application.type" = "injected" # must be supplied at query time
+    # application partition enum values
+    # Reference: https://developers.google.com/admin-sdk/reports/reference/rest/v1/activities/watch#ApplicationName
+    "projection.application.type"   = "enum"
+    "projection.application.values" = join(",", local.all_apps)
 
     # date partition
-    "projection.day.type"          = "date"
-    "projection.day.format"        = "yyyy-MM-dd"
-    "projection.day.range"         = "NOW-3YEARS,NOW"
-    "projection.day.interval"      = "1"
-    "projection.day.interval.unit" = "DAYS"
+    # Use current date as start of partitions because there cannot be data before now
+    # Reference: https://docs.aws.amazon.com/athena/latest/ug/partition-projection-kinesis-firehose-example.html#partition-projection-kinesis-firehose-example-using-the-date-type
+    "projection.dt.type"          = "date"
+    "projection.dt.format"        = "yyyy/MM/dd/HH"
+    "projection.dt.range"         = "${formatdate("YYYY/MM/DD/hh", time_static.current.rfc3339)},NOW"
+    "projection.dt.interval"      = "1"
+    "projection.dt.interval.unit" = "HOURS"
 
-    # hour partition
-    "projection.hour.type"   = "integer"
-    "projection.hour.range"  = "0,23"
-    "projection.hour.digits" = "2"
-
-    "storage.location.template" = "s3://${var.s3_bucket_name}/${var.table_name}/$${application}/$${day}/$${hour}/"
+    "storage.location.template" = "s3://${var.s3_bucket_name}/${var.table_name}/$${application}/$${dt}/"
   }
 
   storage_descriptor {
@@ -66,12 +98,7 @@ resource "aws_glue_catalog_table" "logs" {
   }
 
   partition_keys {
-    name = "day"
-    type = "date"
-  }
-
-  partition_keys {
-    name = "hour"
-    type = "int"
+    name = "dt"
+    type = "string"
   }
 }

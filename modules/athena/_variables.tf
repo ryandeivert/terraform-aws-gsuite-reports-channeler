@@ -35,6 +35,12 @@ variable "database" {
   default     = "default"
 }
 
+variable "extra_applications" {
+  type        = list(string)
+  description = "Additional applications for which Athena partitions should be projected. This allows for extra applications to be injected without updating the static default list"
+  default     = []
+}
+
 /*
 Example filters:
 

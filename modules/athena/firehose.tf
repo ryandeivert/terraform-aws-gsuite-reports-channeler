@@ -19,9 +19,9 @@ resource "aws_kinesis_firehose_delivery_stream" "s3" {
 
     # Using a prefix that contains Dynamic Partitioning namespaces (partitionKeyFromQuery)
     # requires dynamic partitioning to be enabled for this Firehose (see below)
-    # The resulting date and hour partitioning is YYYY-MM-DD/HH to enable easier datetime comparisons
+    # The resulting date/time partitioning format is YYYY/MM/DD/HH
     # Reference: https://docs.aws.amazon.com/athena/latest/ug/partition-projection-kinesis-firehose-example.html#partition-projection-kinesis-firehose-example-iso-formatted-dates
-    prefix              = "${var.table_name}/!{partitionKeyFromQuery:application}/!{partitionKeyFromQuery:datehour}/"
+    prefix              = "${var.table_name}/!{partitionKeyFromQuery:application}/!{partitionKeyFromQuery:dt}/"
     error_output_prefix = "${var.table_name}_failures/!{firehose:error-output-type}/"
 
     dynamic_partitioning_configuration {
@@ -31,7 +31,7 @@ resource "aws_kinesis_firehose_delivery_stream" "s3" {
     processing_configuration {
       enabled = "true"
 
-      # Partition extraction (for application, datehour); used in the prefix attribute above
+      # Partition extraction (for application, dt); used in the prefix attribute above
       # The date is extracted from the record and dynamically used to partition the data
       # Dates from gsuite logs are in the format: 2022-07-25T00:05:53.167Z
       # Special handling is required for milliseconds due to a limitation with jq
@@ -40,8 +40,10 @@ resource "aws_kinesis_firehose_delivery_stream" "s3" {
         type = "MetadataExtraction"
         parameters {
           parameter_name = "MetadataExtractionQuery"
-          # Do not remove the escape characters; they are required
-          parameter_value = "{application:.id.applicationName,datehour:.id.time | sub(\"(?<time>.*)\\\\..*Z\"; \"\\(.time)Z\") | strptime(\"%Y-%m-%dT%H:%M:%SZ\") | strftime(\"%Y-%m-%d/%H\")}"
+          # Do not remove the escape characters below; they are required
+          # Substituting "unknown" for missing id.applicationName fields ensures partitioning
+          # still works. See the additional notes in glue.tf about this field
+          parameter_value = "{application: (.id.applicationName // \"unknown\"), dt: .id.time | sub(\"(?<time>.*)\\\\..*Z\"; \"\\(.time)Z\") | strptime(\"%Y-%m-%dT%H:%M:%SZ\") | strftime(\"%Y/%m/%d/%H\")}"
         }
         parameters {
           parameter_name  = "JsonParsingEngine"
