@@ -1,5 +1,6 @@
 
 resource "aws_sns_topic_subscription" "firehose" {
+  count                 = var.enable == true ? 1 : 0
   topic_arn             = var.sns_topic_arn
   protocol              = "firehose"
   endpoint              = aws_kinesis_firehose_delivery_stream.s3.arn

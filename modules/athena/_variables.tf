@@ -3,6 +3,12 @@ variable "prefix" {
   description = "Custom prefix to prepend to resources created in this module"
 }
 
+variable "enable" {
+  type        = bool
+  description = "Boolean to indicate if logs should be sent to the Firehose delivery stream. Disabling this will retain the Firehose, Athena table, and other dependent resources"
+  default     = true
+}
+
 variable "sns_topic_arn" {
   type        = string
   description = "SNS Topic ARN to which the AWS Firehose will be subscribed"
