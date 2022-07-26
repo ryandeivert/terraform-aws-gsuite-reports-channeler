@@ -30,15 +30,21 @@ variable "s3_prefix" {
   default     = ""
 }
 
-variable "table_name" {
-  type        = string
-  description = "Resulting table name to be created in specified database variable"
+variable "use_hive_partitions" {
+  type        = bool
+  description = "Whether or not the data in S3 should be stored using a path that is compatible with Hive"
+  default     = true
 }
 
 variable "database" {
   type        = string
   description = "Name of Athena database where table in table_name variable should be created"
   default     = "default"
+}
+
+variable "table_name" {
+  type        = string
+  description = "Resulting table name to be created in specified database variable"
 }
 
 variable "extra_applications" {

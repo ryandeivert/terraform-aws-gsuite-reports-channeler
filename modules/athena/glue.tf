@@ -44,6 +44,10 @@ locals {
     ],
     var.extra_applications
   )
+
+  table_dt_format        = var.use_hive_partitions == true ? "yyyy-MM-dd-HH" : "yyyy/MM/dd/HH"
+  table_dt_start_format  = var.use_hive_partitions == true ? "YYYY-MM-DD-hh" : "YYYY/MM/DD/hh"
+  table_storage_template = var.use_hive_partitions == true ? "application=$${application}/dt=$${dt}" : "$${application}/$${dt}"
 }
 
 resource "time_static" "current" {}
@@ -65,12 +69,12 @@ resource "aws_glue_catalog_table" "logs" {
     # Use current date as start of partitions because there cannot be data before now
     # Reference: https://docs.aws.amazon.com/athena/latest/ug/partition-projection-kinesis-firehose-example.html#partition-projection-kinesis-firehose-example-using-the-date-type
     "projection.dt.type"          = "date"
-    "projection.dt.format"        = "yyyy/MM/dd/HH"
-    "projection.dt.range"         = "${formatdate("YYYY/MM/DD/hh", time_static.current.rfc3339)},NOW"
+    "projection.dt.format"        = local.table_dt_format
+    "projection.dt.range"         = "${formatdate(local.table_dt_start_format, time_static.current.rfc3339)},NOW"
     "projection.dt.interval"      = "1"
     "projection.dt.interval.unit" = "HOURS"
 
-    "storage.location.template" = "s3://${var.s3_bucket_name}/${local.table_location}/$${application}/$${dt}/"
+    "storage.location.template" = "s3://${var.s3_bucket_name}/${local.table_location}/${local.table_storage_template}/"
   }
 
   storage_descriptor {

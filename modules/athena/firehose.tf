@@ -1,3 +1,9 @@
+
+locals {
+  jq_dt_format        = var.use_hive_partitions == true ? "strftime(\"%Y-%m-%d-%H\")" : "strftime(\"%Y/%m/%d/%H\")"
+  firehose_partitions = var.use_hive_partitions == true ? "application=!{partitionKeyFromQuery:application}/dt=!{partitionKeyFromQuery:dt}" : "!{partitionKeyFromQuery:application}/!{partitionKeyFromQuery:dt}"
+}
+
 resource "aws_cloudwatch_log_group" "firehose" {
   name = "/aws/kinesisfirehose/${local.resource_name}"
 }
@@ -21,7 +27,7 @@ resource "aws_kinesis_firehose_delivery_stream" "s3" {
     # requires dynamic partitioning to be enabled for this Firehose (see below)
     # The resulting date/time partitioning format is YYYY/MM/DD/HH
     # Reference: https://docs.aws.amazon.com/athena/latest/ug/partition-projection-kinesis-firehose-example.html#partition-projection-kinesis-firehose-example-iso-formatted-dates
-    prefix              = "${local.table_location}/!{partitionKeyFromQuery:application}/!{partitionKeyFromQuery:dt}/"
+    prefix              = "${local.table_location}/${local.firehose_partitions}/"
     error_output_prefix = "${local.table_location}_failures/!{firehose:error-output-type}/"
 
     dynamic_partitioning_configuration {
@@ -43,7 +49,7 @@ resource "aws_kinesis_firehose_delivery_stream" "s3" {
           # Do not remove the escape characters below; they are required
           # Substituting "unknown" for missing id.applicationName fields ensures partitioning
           # still works. See the additional notes in glue.tf about this field
-          parameter_value = "{application: (.id.applicationName // \"unknown\"), dt: .id.time | sub(\"(?<time>.*)\\\\..*Z\"; \"\\(.time)Z\") | strptime(\"%Y-%m-%dT%H:%M:%SZ\") | strftime(\"%Y/%m/%d/%H\")}"
+          parameter_value = "{application: (.id.applicationName // \"unknown\"), dt: .id.time | sub(\"(?<time>.*)\\\\..*Z\"; \"\\(.time)Z\") | strptime(\"%Y-%m-%dT%H:%M:%SZ\") | ${local.jq_dt_format}}"
         }
         parameters {
           parameter_name  = "JsonParsingEngine"
