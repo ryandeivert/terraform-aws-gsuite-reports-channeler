@@ -1,6 +1,8 @@
 import json
 import logging
 import os
+import pathlib
+from urllib.parse import urlparse
 
 import boto3
 
@@ -8,6 +10,7 @@ logging.basicConfig()
 
 HEADER_CHANNEL_TOKEN = 'x-goog-channel-token'   # custom token, should match above
 HEADER_RESOURCE_STATE = 'x-goog-resource-state' # "sync", "download", etc
+HEADER_RESOURCE_URI = 'x-goog-resource-uri'     # path of resource (eg: applicationName)
 HEADER_CONTENT_LENGTH = 'content-length'        # integer for body size
 
 LOGGER = logging.getLogger(__name__)
@@ -15,6 +18,45 @@ LOGGER.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
 
 EXPECTED_CHANNEL_TOKEN = os.environ['CHANNEL_TOKEN']
 SNS_TOPIC = boto3.resource('sns').Topic(os.environ['SNS_TOPIC_ARN'])
+
+
+def extract_attributes(body, headers):
+    attributes = {}
+    try:
+        app_name = body['id']['applicationName']
+    except KeyError:
+        # There is a bug with the chrome application, and the "watch" api does not
+        # return the id.applicationName in the payload. In this case, we extract it
+        # from the resource URI header + inject it into the body
+        app_name = None
+        LOGGER.error(
+            'id.applicationName not found in body; falling back on uri resource header: %s',
+            headers[HEADER_RESOURCE_URI]
+        )
+
+    if not app_name:
+        uri = urlparse(headers[HEADER_RESOURCE_URI])
+        app_name = pathlib.Path(uri.path).name
+        LOGGER.debug('Extracted application %s from uri %s', app_name, uri)
+        # insert the app name into the body
+        body['id']['applicationName'] = app_name
+
+    if app_name:  # empty attributes are not allowed
+        attributes['application'] = {
+            'DataType': 'String',
+            'StringValue': app_name
+        }
+
+    try:
+        if body['actor']['email']:  # empty attributes are not allowed
+            attributes['actor_email'] = {
+                'DataType': 'String',
+                'StringValue': body['actor']['email']
+            }
+    except KeyError:
+        pass
+
+    return attributes
 
 
 def handler(event, _):
@@ -43,19 +85,13 @@ def handler(event, _):
 
     body = json.loads(event['body'])
 
+    # Do this here, as it can modify the body to inject the applicationName
+    attributes = extract_attributes(body, headers)
+
     response = SNS_TOPIC.publish(
         Message=json.dumps(body, separators=(',', ':')),
         # Add some message attributes to support SNS subscription filtering
-        MessageAttributes={
-            'application': {
-                'DataType': 'String',
-                'StringValue': body['id']['applicationName']
-            },
-            'actor_email': {
-                'DataType': 'String',
-                'StringValue': body['actor']['email']
-            },
-        }
+        MessageAttributes=attributes
     )
 
     LOGGER.info('Published message to sns: %s', response)
