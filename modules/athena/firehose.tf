@@ -157,10 +157,7 @@ data "aws_iam_policy_document" "firehose" {
       condition {
         test     = "StringLike"
         variable = "kms:EncryptionContext:aws:s3:arn"
-        values = [
-          local.s3_bucket_arn,
-          "${local.s3_bucket_arn}/*"
-        ]
+        values   = ["${local.s3_bucket_arn}/${local.table_location}/*"]
       }
     }
   }
