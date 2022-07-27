@@ -1,9 +1,9 @@
-name: Unit tests and pylint
+name: unit tests and pylint
 
 on: [push]
 
 jobs:
-  build:
+  unit-tests-and-pylint:
 
     runs-on: ubuntu-latest
 
