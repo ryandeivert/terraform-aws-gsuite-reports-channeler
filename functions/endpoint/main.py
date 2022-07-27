@@ -94,4 +94,4 @@ def handler(event, _):
         MessageAttributes=attributes
     )
 
-    LOGGER.info('Published message to sns: %s', response)
+    LOGGER.debug('Published message to sns: %s', response)

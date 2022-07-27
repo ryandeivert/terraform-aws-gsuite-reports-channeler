@@ -96,16 +96,18 @@ class TestEndpoint:
             )
 
     def test_main_valid(self, caplog, sns):  # pylint: disable=unused-argument
-        main.handler(
-            {
-                'headers': {
-                    main.HEADER_CHANNEL_TOKEN: TEST_TOKEN,
-                    main.HEADER_CONTENT_LENGTH: 14,
+        caplog.set_level(logging.DEBUG, logger=main.LOGGER.name)
+        with caplog.at_level(logging.DEBUG):
+            main.handler(
+                {
+                    'headers': {
+                        main.HEADER_CHANNEL_TOKEN: TEST_TOKEN,
+                        main.HEADER_CONTENT_LENGTH: 14,
+                    },
+                    'body': '{"id": {"applicationName": "admin"}, "actor": {"email": "foo@bar.com"}}'
                 },
-                'body': '{"id": {"applicationName": "admin"}, "actor": {"email": "foo@bar.com"}}'
-            },
-            None
-        )
+                None
+            )
 
         assert 'Published message to sns' in caplog.text
 
