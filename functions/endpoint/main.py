@@ -8,10 +8,10 @@ import boto3
 
 logging.basicConfig()
 
-HEADER_CHANNEL_TOKEN = 'x-goog-channel-token'   # custom token, should match above
-HEADER_RESOURCE_STATE = 'x-goog-resource-state' # "sync", "download", etc
-HEADER_RESOURCE_URI = 'x-goog-resource-uri'     # path of resource (eg: applicationName)
-HEADER_CONTENT_LENGTH = 'content-length'        # integer for body size
+HEADER_CHANNEL_TOKEN = 'x-goog-channel-token'    # custom token, must match expected token
+HEADER_RESOURCE_STATE = 'x-goog-resource-state'  # "sync", "download", etc
+HEADER_RESOURCE_URI = 'x-goog-resource-uri'      # path of resource (eg: applicationName)
+HEADER_CONTENT_LENGTH = 'content-length'         # integer for body size
 
 LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
@@ -20,7 +20,13 @@ EXPECTED_CHANNEL_TOKEN = os.environ['CHANNEL_TOKEN']
 SNS_TOPIC = boto3.resource('sns').Topic(os.environ['SNS_TOPIC_ARN'])
 
 
-def extract_attributes(body, headers):
+def extract_attributes(body: dict, headers: dict) -> dict:
+    """Extract various attributes for sns, like applicationName, actor email, and event name
+
+    These are used as MessageAttributes on the published message.
+
+    Note: attributes cannot contain empty values
+    """
     attributes = {}
     try:
         app_name = body['id']['applicationName']
@@ -41,14 +47,20 @@ def extract_attributes(body, headers):
         # insert the app name into the body
         body['id']['applicationName'] = app_name
 
-    if app_name:  # empty attributes are not allowed
+    if app_name:
         attributes['application'] = {
             'DataType': 'String',
             'StringValue': app_name
         }
 
+    if headers.get(HEADER_RESOURCE_STATE):
+        attributes['event'] = {
+            'DataType': 'String',
+            'StringValue': headers.get(HEADER_RESOURCE_STATE)
+        }
+
     try:
-        if body['actor']['email']:  # empty attributes are not allowed
+        if body['actor']['email']:
             attributes['actor_email'] = {
                 'DataType': 'String',
                 'StringValue': body['actor']['email']
@@ -59,7 +71,7 @@ def extract_attributes(body, headers):
     return attributes
 
 
-def handler(event, _):
+def handler(event: dict, _):
     headers = event['headers']
 
     if headers.get(HEADER_CHANNEL_TOKEN) != EXPECTED_CHANNEL_TOKEN:

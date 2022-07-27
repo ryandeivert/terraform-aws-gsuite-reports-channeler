@@ -129,7 +129,14 @@ EXPECTED_ATTRIBUTE_APPLICATION_CHROME = {
 EXPECTED_ATTRIBUTE_ACTOR_EMAIL = {
     'actor_email': {
         'DataType': 'String',
-        'StringValue': 'foo@bar.com'
+        'StringValue': 'foo@bar.com',
+    },
+}
+
+EXPECTED_ATTRIBUTE_EVENT = {
+    'event': {
+        'DataType': 'String',
+        'StringValue': 'download',
     },
 }
 
@@ -147,6 +154,7 @@ ATTRIBUTE_TESTS = [
         {
             **EXPECTED_ATTRIBUTE_APPLICATION_ADMIN,
             **EXPECTED_ATTRIBUTE_ACTOR_EMAIL,
+            **EXPECTED_ATTRIBUTE_EVENT,
         },
     ),
     # test-01
@@ -158,6 +166,7 @@ ATTRIBUTE_TESTS = [
         },
         {
             **EXPECTED_ATTRIBUTE_APPLICATION_ADMIN,
+            **EXPECTED_ATTRIBUTE_EVENT,
         },
     ),
     # test-02
@@ -171,6 +180,7 @@ ATTRIBUTE_TESTS = [
         {
             **EXPECTED_ATTRIBUTE_APPLICATION_CHROME,
             **EXPECTED_ATTRIBUTE_ACTOR_EMAIL,
+            **EXPECTED_ATTRIBUTE_EVENT,
         },
     ),
     # test-03
@@ -182,6 +192,7 @@ ATTRIBUTE_TESTS = [
         },
         {
             **EXPECTED_ATTRIBUTE_APPLICATION_CHROME,
+            **EXPECTED_ATTRIBUTE_EVENT,
         },
     ),
     # test-04
@@ -197,6 +208,7 @@ ATTRIBUTE_TESTS = [
         {
             **EXPECTED_ATTRIBUTE_APPLICATION_CHROME,
             **EXPECTED_ATTRIBUTE_ACTOR_EMAIL,
+            **EXPECTED_ATTRIBUTE_EVENT,
         },
     ),
     # test-05
@@ -209,6 +221,7 @@ ATTRIBUTE_TESTS = [
         },
         {
             **EXPECTED_ATTRIBUTE_APPLICATION_CHROME,
+            **EXPECTED_ATTRIBUTE_EVENT,
         },
     ),
     # test-06
@@ -218,14 +231,35 @@ ATTRIBUTE_TESTS = [
         },
         {
             **EXPECTED_ATTRIBUTE_APPLICATION_CHROME,
+            **EXPECTED_ATTRIBUTE_EVENT,
         },
     ),
 ]
 
 TEST_HEADERS = {
     'x-goog-resource-uri': 'https://admin.googleapis.com/admin/reports/v1/activity/users/all/applications/chrome?alt=json&orgUnitID',
+    'x-goog-resource-state': 'download',
 }
+
 
 @pytest.mark.parametrize('t_input, t_output', ATTRIBUTE_TESTS)
 def test_extract_attributes(t_input, t_output):
     assert main.extract_attributes(t_input, TEST_HEADERS) == t_output
+
+
+def test_extract_attributes_no_state():
+    t_input = {
+        'id': {
+            'applicationName': None
+        },
+        'actor': {
+            'email': 'foo@bar.com'
+        },
+    }
+    headers = {
+        'x-goog-resource-uri': 'https://admin.googleapis.com/admin/reports/v1/activity/users/all/applications/chrome?alt=json&orgUnitID',
+    }
+    assert main.extract_attributes(t_input, headers) == {
+        **EXPECTED_ATTRIBUTE_APPLICATION_CHROME,
+        **EXPECTED_ATTRIBUTE_ACTOR_EMAIL,
+    }
