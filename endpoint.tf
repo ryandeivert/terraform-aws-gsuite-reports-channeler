@@ -17,9 +17,11 @@ module "endpoint_function" {
   ]
 
   environment_variables = {
-    LOG_LEVEL     = var.log_level
-    CHANNEL_TOKEN = random_password.token.result
-    SNS_TOPIC_ARN = aws_sns_topic.logs.arn
+    PREFIX                       = var.prefix
+    LOG_LEVEL                    = var.log_level
+    CHANNEL_TOKEN                = random_password.token.result
+    SNS_TOPIC_ARN                = aws_sns_topic.logs.arn
+    POWERTOOLS_METRICS_NAMESPACE = "gsuite-logs-channeler"
   }
 }
 
