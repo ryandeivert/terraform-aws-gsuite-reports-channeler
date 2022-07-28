@@ -44,9 +44,20 @@ module "channel_renewer_function_alias" {
 
 data "aws_iam_policy_document" "channel_renewer" {
   statement {
-    effect    = "Allow"
-    actions   = ["states:StartExecution"]
+    effect = "Allow"
+    actions = [
+      "states:ListExecutions",
+      "states:StartExecution",
+    ]
     resources = [aws_sfn_state_machine.channeler.arn]
+  }
+  statement {
+    effect = "Allow"
+    actions = [
+      "states:DescribeExecution",
+      "states:StopExecution",
+    ]
+    resources = ["arn:aws:states:${local.region}:${local.account_id}:execution:${local.channel_function_name}:*"]
   }
   statement {
     effect    = "Allow"

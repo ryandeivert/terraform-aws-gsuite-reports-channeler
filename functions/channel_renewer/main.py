@@ -15,7 +15,7 @@ LOGGER.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
 EXPECTED_CHANNEL_TOKEN = os.environ['CHANNEL_TOKEN']
 
 
-def _get_secrets(secret_name):
+def _get_secrets(secret_name: str):
     client = boto3.client('secretsmanager')
     secret = client.get_secret_value(SecretId=secret_name)
     return json.loads(secret['SecretString'])
@@ -23,11 +23,11 @@ def _get_secrets(secret_name):
 
 class Channeler:
 
-    def __init__(self, keydata, email):
+    def __init__(self, keydata: dict, email: str):
         self._service = self._create_service(keydata, email)
 
     @staticmethod
-    def _create_service(keydata, email):
+    def _create_service(keydata: dict, email: str):
         """Create the google api service, which signs requests with the private key data"""
         LOGGER.debug('Creating activities service')
 
@@ -48,7 +48,7 @@ class Channeler:
         except (errors.Error, GoogleAuthError) as err:
             raise RuntimeError('Failed to build discovery service') from err
 
-    def stop_channel(self, resource_id, channel_id):
+    def stop_channel(self, resource_id: str, channel_id: str):
         LOGGER.info('Stopping channel %s for resource %s', channel_id, resource_id)
         body = {
             'resourceId': resource_id,
@@ -57,7 +57,7 @@ class Channeler:
 
         self._service.channels().stop(body=body).execute()  # pylint: disable=no-member
 
-    def create_channel(self, app_name, url, token):
+    def create_channel(self, app_name: str, url: str, token: str):
         """Create a new channel for activities for this app
 
         Example result for call to watch():
@@ -102,7 +102,7 @@ class Channeler:
         }
 
 
-def _init_step_function(channel_info):
+def _init_step_function(channel_info: dict):
     """Start the step function manually for the first time
 
     When the step function is started for the very first time, a brief
@@ -122,7 +122,56 @@ def _init_step_function(channel_info):
     LOGGER.info('Started step function: %s', response)
 
 
-def handler(event, _):
+def _stop_step_function(channeler, application: str) -> tuple[str, str]:
+    """Stop the step function for this application
+
+    Return the resource and channel ID for this channel from the step function context
+    """
+    LOGGER.info('Stopping step function for application: %s', application)
+
+    snf_client = boto3.client('stepfunctions')
+
+    response_iterator = snf_client.get_paginator('list_executions').paginate(
+        stateMachineArn=os.environ['STATE_MACHINE_ARN'],
+        statusFilter='RUNNING',
+    )
+
+    # Filter to only executions that are for this application
+    filtered_iterator = response_iterator.search(
+        f'executions[?starts_with(name, `{application}`)].executionArn'
+    )
+
+    # There should only be one active execution per app, but iterate just in case (?)
+    for execution_arn in filtered_iterator:
+
+        LOGGER.info('Stopping step function: %s', execution_arn)
+
+        response = snf_client.stop_execution(
+            executionArn=execution_arn,
+            error='ManualStop',
+            cause='received request to stop step function'
+        )
+
+        LOGGER.info('Stopped step function: %s', response)
+
+        # load the resource ID and channel ID from execution input
+        response = snf_client.describe_execution(executionArn=execution_arn)
+        execution_input = json.loads(response['input'])
+
+        LOGGER.debug(
+            'Loaded input from step function execution (%s): %s',
+            execution_arn,
+            execution_input
+        )
+
+        try:
+            channeler.stop_channel(execution_input['resource_id'], execution_input['channel_id'])
+        except errors.Error as err:
+            # Log error for potentially already stopped channel
+            LOGGER.error('Channel could not be stopped: %s', err)
+
+
+def handler(event: dict, _) -> dict:
     """
     This lambda is typically invoked after a "wait" state in a step function
 
@@ -147,6 +196,11 @@ def handler(event, _):
 
     client = Channeler(keydata, os.environ['DELEGATION_EMAIL'])
 
+    action = event.get('lambda_action')
+    if action == 'stop':
+        _stop_step_function(client, event['application'])
+        return None
+
     # Create a new channel. This should occur before any old channels are stopped
     channel_info = client.create_channel(
         event['application'],
@@ -154,7 +208,7 @@ def handler(event, _):
         os.environ['CHANNEL_TOKEN']
     )
 
-    if 'channel_id' not in event:
+    if action == 'init':
         # This is the first channel opened, so begin the step function execution
         _init_step_function(channel_info)
     else:
