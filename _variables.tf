@@ -30,3 +30,9 @@ variable "applications" {
   description = "List of applications names for which logging channels should be created. See: https://developers.google.com/admin-sdk/reports/reference/rest/v1/activities/watch#ApplicationName"
   default     = []
 }
+
+variable "stop_applications" {
+  type        = list(string)
+  description = "List of applications names for which logging channels should be stopped. Note that entries to this list must have been applied as an entry in the application variable's list before they may be added here"
+  default     = []
+}

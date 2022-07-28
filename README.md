@@ -38,6 +38,25 @@ module "channeler" {
 }
 ```
 
+### Stop Logging
+
+Logging for an application that was previously adding to the `applications` list can be
+stopped by adding the application to the `stop_applications` list.
+
+This will signal the channel renewer Lambda function to stop any open channels for this
+application, as well as terminate the respective step function execution.
+
+```hcl
+module "channeler" {
+  source = "ryandeivert/gsuite-reports-channeler/aws"
+
+  delegation_email  = "svc-acct-email@domain.com"
+  secret_name       = "google-reports-jwt" # name of secret from setup above
+  applications      = ["drive", "admin", "calendar", "token"]
+  stop_applications = ["admin"]
+}
+```
+
 ## Optional Athena Submodule
 
 The `modules/athena` directory contains the necessary components to make the logs
@@ -90,23 +109,3 @@ Some potential solutions could be:
   [300 messages per second](https://docs.aws.amazon.com/general/latest/gr/sns.html) is the maximum
   throughput at the time of writing.
 * suggestions welcome!
-
-### Removing an "application"
-
-As part of the normal operating process, new channels are created and old channels are
-automatically and appropriately stopped in a perpetual cycle. The Step Function state
-machine itself maintains the only reference to the state of the channel(s). This avoids
-the need to store any state externally, and avoids the need to use any sort of cron-based
-approach to handle renewal of channels.
-
-Because of this, if you decided you would like to stop receiving events for a given application,
-removing it from the list of `applications` will not suffice. Once the pipeline is active for a
-specific application, the respective Step Function execution for the application(s) that you would
-like to stop receiving events for will have to be stopped manually.
-
-The Step Function execution IDs are prefixed with the application name, followed by a UUID. For
-example, a Step Function execution handling the `admin` application will look something like:
-`admin_bd003813-4857-489a-8dfc-4502aed85988`. The UUID is the ID of the currently active channel.
-
-Note that since channels themselves have a maximum lifespan of [21600 seconds](https://developers.google.com/admin-sdk/reports/v1/guides/push#optional-properties) (6 hours), you can either let the channel die organically or manually
-stop it using the API.
