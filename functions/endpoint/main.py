@@ -90,7 +90,7 @@ def time_now() -> datetime:
     return datetime.now(tz=timezone.utc)
 
 
-def inspect_expiration(expiration: str):
+def log_expiration(received_time: datetime, expiration: str):
     """Log number of seconds until expiration for this channel
 
     This can be use to create an alarm if, for some reason, a channel is not properly renewed
@@ -98,17 +98,19 @@ def inspect_expiration(expiration: str):
     if not expiration:
         return
     exp = datetime.strptime(expiration, EXPIRATION_FORMAT).replace(tzinfo=timezone.utc)
-    delta = exp - time_now()
+    delta = exp - received_time
     metrics.add_metric(
         name='ChannelTTL',
         unit=MetricUnit.Seconds,
-        value=int(delta.total_seconds())
+        value=round(delta.total_seconds())
     )
 
 
 @metrics.log_metrics
 def handler(event: dict, _):
     headers = event['headers']
+
+    received_time = time_now()
 
     if headers.get(HEADER_CHANNEL_TOKEN) != EXPECTED_CHANNEL_TOKEN:
         raise RuntimeError('Invalid event', event)
@@ -123,7 +125,7 @@ def handler(event: dict, _):
     LOGGER.debug('Received valid message: %s', {header: value for header, value in headers.items() if header.startswith('x-goog-')})
     metrics.add_metric(name='ValidEvents', unit=MetricUnit.Count, value=1)
 
-    inspect_expiration(headers.get(HEADER_CHANNEL_EXPIRATION))
+    log_expiration(received_time, headers.get(HEADER_CHANNEL_EXPIRATION))
 
     body = json.loads(event['body'])
     app_name = app_from_event(body, headers)
