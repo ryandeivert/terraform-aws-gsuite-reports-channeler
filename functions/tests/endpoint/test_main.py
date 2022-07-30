@@ -321,7 +321,23 @@ def fixture_static_time_now():
     ('Wed, 27 Jul 2022 08:30:00 GMT', 5400),  # 1 hour, 30 min
     ('Wed, 27 Jul 2022 07:15:00 GMT', 900),   # 15 min
 ])
-def test_log_expiration(expiration, seconds):
+def test_log_expiration_metric(expiration, seconds):
     with mock.patch.object(Metrics, 'add_metric') as metric_mock:
-        main.log_expiration(MOCK_RECEIVED_TIME, expiration)
+        main.log_expiration_metric(MOCK_RECEIVED_TIME, expiration)
         metric_mock.assert_called_with(name='ChannelTTL', unit=MetricUnit.Seconds, value=seconds)
+
+
+@pytest.mark.parametrize('body, seconds', [
+    ({'id': {'time': '2022-07-27T06:30:00.000Z'}}, 1800), # 30 min
+    ({'id': {'time': '2022-07-27T06:59:58.461Z'}}, 2), # 2 sec (rounds up)
+])
+def test_log_event_lag_time_metric(body, seconds):
+    with mock.patch.object(Metrics, 'add_metric') as metric_mock:
+        main.log_event_lag_time_metric(MOCK_RECEIVED_TIME, body)
+        metric_mock.assert_called_with(name='EventLagTime', unit=MetricUnit.Seconds, value=seconds)
+
+
+def test_log_event_lag_time_metric_no_time():
+    with mock.patch.object(Metrics, 'add_metric') as metric_mock:
+        main.log_event_lag_time_metric(MOCK_RECEIVED_TIME, {})
+        metric_mock.assert_not_called()
