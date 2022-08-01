@@ -135,9 +135,6 @@ def handler(event: dict, _):
 
     received_time = time_now()
 
-    # Log the TTL for this channel
-    log_expiration_metric(received_time, headers.get(HEADER_CHANNEL_EXPIRATION))
-
     if headers.get(HEADER_CHANNEL_TOKEN) != EXPECTED_CHANNEL_TOKEN:
         raise RuntimeError('Invalid event', event)
 
@@ -147,6 +144,9 @@ def handler(event: dict, _):
 
     if 'body' not in event:
         raise RuntimeError('body not found in event', event)
+
+    # Log the TTL for this channel
+    log_expiration_metric(received_time, headers.get(HEADER_CHANNEL_EXPIRATION))
 
     LOGGER.debug('Received valid message: %s', {header: value for header, value in headers.items() if header.startswith('x-goog-')})
     metrics.add_metric(name='ValidEvents', unit=MetricUnit.Count, value=1)
