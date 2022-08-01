@@ -189,7 +189,7 @@ def handler(event: dict, _) -> dict:
         }
 
     """
-    LOGGER.debug('Received event: %s', event)
+    LOGGER.info('Received event: %s', event)
 
     keydata = _get_secrets(os.environ['SECRET_NAME'])
     LOGGER.debug('Loaded secret data with keys: %s', list(keydata.keys()))
@@ -201,6 +201,11 @@ def handler(event: dict, _) -> dict:
         _stop_step_function(client, event['application'])
         return None
 
+    # EventBridge rule triggering a recover event
+    # Swap out the event for the old input and try to restart this execution
+    if action == 'recover':
+        event = json.loads(event['input'])
+
     # Create a new channel. This should occur before any old channels are stopped
     channel_info = client.create_channel(
         event['application'],
@@ -208,11 +213,15 @@ def handler(event: dict, _) -> dict:
         os.environ['CHANNEL_TOKEN']
     )
 
-    if action == 'init':
-        # This is the first channel opened, so begin the step function execution
+    if action in {'init', 'recover'}:
+        # This is the first channel opened, or the pipeline is recovering
+        # from a failure, so start the step function execution
         _init_step_function(channel_info)
-    else:
-        # Stop the old channel only after a new one is created above
-        client.stop_channel(event['resource_id'], event['channel_id'])
+
+    if action == 'init':
+        return channel_info  # no old channels to handle, so return
+
+    # Stop the old channel only after a new one is created above
+    client.stop_channel(event['resource_id'], event['channel_id'])
 
     return channel_info  # passed on to next step function invocation
