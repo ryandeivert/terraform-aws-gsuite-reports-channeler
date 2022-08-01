@@ -37,7 +37,9 @@ resource "aws_sfn_state_machine" "channeler" {
           "ErrorEquals": [
             "Lambda.ServiceException",
             "Lambda.AWSLambdaException",
-            "Lambda.SdkClientException"
+            "Lambda.SdkClientException",
+            "Lambda.Unknown",
+            "Lambda.TooManyRequestsException"
           ],
           "IntervalSeconds": 2,
           "MaxAttempts": 6,
