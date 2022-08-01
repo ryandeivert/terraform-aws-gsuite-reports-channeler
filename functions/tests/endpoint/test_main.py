@@ -12,6 +12,8 @@ import pytest
 
 from .. import TEST_TOKEN
 
+# 'Wed, 27 Jul 2022 07:00:00 GMT' aka '2022-07-27T07:00:00+00:00'
+MOCK_RECEIVED_TIME = datetime(2022, 7, 27, 7, 0, 0, tzinfo=timezone.utc)
 TOPIC_NAME = 'foo-topic'
 ENV = {
     'PREFIX': 'foo',
@@ -309,9 +311,8 @@ def test_app_from_event(body, headers, app_name):
 
 @pytest.fixture(name='static_time_now')
 def fixture_static_time_now():
-    # 'Wed, 27 Jul 2022 07:00:00 GMT' aka '2022-07-27T07:00:00+00:00'
     with mock.patch.object(main, 'time_now') as time_mock:
-        time_mock.return_value = datetime(2022, 7, 27, 7, 0, 0, tzinfo=timezone.utc)
+        time_mock.return_value = MOCK_RECEIVED_TIME
         yield time_mock
 
 
@@ -320,7 +321,23 @@ def fixture_static_time_now():
     ('Wed, 27 Jul 2022 08:30:00 GMT', 5400),  # 1 hour, 30 min
     ('Wed, 27 Jul 2022 07:15:00 GMT', 900),   # 15 min
 ])
-def test_inspect_expiration(expiration, seconds, static_time_now):  # pylint: disable=unused-argument
+def test_log_expiration_metric(expiration, seconds):
     with mock.patch.object(Metrics, 'add_metric') as metric_mock:
-        main.inspect_expiration(expiration)
+        main.log_expiration_metric(MOCK_RECEIVED_TIME, expiration)
         metric_mock.assert_called_with(name='ChannelTTL', unit=MetricUnit.Seconds, value=seconds)
+
+
+@pytest.mark.parametrize('body, seconds', [
+    ({'id': {'time': '2022-07-27T06:30:00.000Z'}}, 1800), # 30 min
+    ({'id': {'time': '2022-07-27T06:59:58.461Z'}}, 2), # 2 sec (rounds up)
+])
+def test_log_event_lag_time_metric(body, seconds):
+    with mock.patch.object(Metrics, 'add_metric') as metric_mock:
+        main.log_event_lag_time_metric(MOCK_RECEIVED_TIME, body)
+        metric_mock.assert_called_with(name='EventLagTime', unit=MetricUnit.Seconds, value=seconds)
+
+
+def test_log_event_lag_time_metric_no_time():
+    with mock.patch.object(Metrics, 'add_metric') as metric_mock:
+        main.log_event_lag_time_metric(MOCK_RECEIVED_TIME, {})
+        metric_mock.assert_not_called()

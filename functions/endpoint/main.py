@@ -90,7 +90,7 @@ def time_now() -> datetime:
     return datetime.now(tz=timezone.utc)
 
 
-def inspect_expiration(expiration: str):
+def log_expiration_metric(received_time: datetime, expiration: str):
     """Log number of seconds until expiration for this channel
 
     This can be use to create an alarm if, for some reason, a channel is not properly renewed
@@ -98,17 +98,45 @@ def inspect_expiration(expiration: str):
     if not expiration:
         return
     exp = datetime.strptime(expiration, EXPIRATION_FORMAT).replace(tzinfo=timezone.utc)
-    delta = exp - time_now()
+    delta = exp - received_time
     metrics.add_metric(
         name='ChannelTTL',
         unit=MetricUnit.Seconds,
-        value=int(delta.total_seconds())
+        value=round(delta.total_seconds())
+    )
+
+
+def log_event_lag_time_metric(received_time: datetime, body: dict):
+    """Log number of seconds between now and the time this event occurred (lag time)
+
+    This metric helps track lag time between when an event occurred and when google
+    notifies us of it. Reference: https://support.google.com/a/answer/7061566
+    """
+    try:
+        event_time = body['id']['time']
+    except KeyError:
+        LOGGER.error('id.time not found in body')
+        return
+
+    # Strip the trailing Z for UTC that python cannot handle well
+    event_time = event_time[:-1] if event_time.endswith('Z') else event_time
+    parsed_time = datetime.fromisoformat(event_time).replace(tzinfo=timezone.utc)
+    delta = received_time - parsed_time
+    metrics.add_metric(
+        name='EventLagTime',
+        unit=MetricUnit.Seconds,
+        value=round(delta.total_seconds())
     )
 
 
 @metrics.log_metrics
 def handler(event: dict, _):
     headers = event['headers']
+
+    received_time = time_now()
+
+    # Log the TTL for this channel
+    log_expiration_metric(received_time, headers.get(HEADER_CHANNEL_EXPIRATION))
 
     if headers.get(HEADER_CHANNEL_TOKEN) != EXPECTED_CHANNEL_TOKEN:
         raise RuntimeError('Invalid event', event)
@@ -123,9 +151,10 @@ def handler(event: dict, _):
     LOGGER.debug('Received valid message: %s', {header: value for header, value in headers.items() if header.startswith('x-goog-')})
     metrics.add_metric(name='ValidEvents', unit=MetricUnit.Count, value=1)
 
-    inspect_expiration(headers.get(HEADER_CHANNEL_EXPIRATION))
-
     body = json.loads(event['body'])
+
+    log_event_lag_time_metric(received_time, body)
+
     app_name = app_from_event(body, headers)
     attributes = extract_attributes(app_name, body, headers)
 
