@@ -36,3 +36,9 @@ variable "stop_applications" {
   description = "List of applications names for which logging channels should be stopped. Note that entries to this list must have been applied as an entry in the application variable's list before they may be added here"
   default     = []
 }
+
+variable "auto_recover" {
+  type        = bool
+  description = "Whether Step Function failures should trigger an automatic attempt to recover"
+  default     = true
+}
