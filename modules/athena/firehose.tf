@@ -56,6 +56,27 @@ resource "aws_kinesis_firehose_delivery_stream" "s3" {
           parameter_value = "JQ-1.6"
         }
       }
+
+      dynamic "processors" {
+        for_each = var.deduplicate == true ? [1] : []
+
+        content {
+          type = "Lambda"
+
+          parameters {
+            parameter_name  = "LambdaArn"
+            parameter_value = module.deduplication_function_alias.lambda_alias_arn
+          }
+          parameters {
+            parameter_name  = "BufferSizeInMBs"
+            parameter_value = "6" # 6 MB max for Lambda synchronous invocation, default = 3
+          }
+          parameters {
+            parameter_name  = "BufferIntervalInSeconds"
+            parameter_value = "300" # seconds, default = 60
+          }
+        }
+      }
     }
 
     data_format_conversion_configuration {

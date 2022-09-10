@@ -74,3 +74,9 @@ variable "filter_policy" {
   description = "SNS filter policy to apply to Firehose <> SNS subscription. This allows filtering only certain users or apps to the created table"
   default     = null
 }
+
+variable "deduplicate" {
+  type        = bool
+  description = "Boolean to indicate if logs should be deduplicated using a best-effort strategy with Kinesis Data Transformation and an intermediary Lambda function"
+  default     = false
+}
