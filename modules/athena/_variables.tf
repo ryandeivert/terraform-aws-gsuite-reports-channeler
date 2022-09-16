@@ -80,3 +80,14 @@ variable "deduplicate" {
   description = "Boolean to indicate if logs should be deduplicated using a best-effort strategy with Kinesis Data Transformation and an intermediary Lambda function"
   default     = false
 }
+
+variable "log_level" {
+  type        = string
+  description = "Log level for the deployed Lambda functions. This should be a string version of the Python logging levels (eg: INFO, DEBUG, CRITICAL)"
+  default     = "INFO"
+}
+variable "cloudwatch_logs_retention_in_days" {
+  type        = number
+  description = "The number of days to retain log events in CloudWatch Log groups"
+  default     = 30
+}

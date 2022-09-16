@@ -25,6 +25,12 @@ variable "log_level" {
   default     = "INFO"
 }
 
+variable "cloudwatch_logs_retention_in_days" {
+  type        = number
+  description = "The number of days to retain log events in CloudWatch Log groups"
+  default     = 30
+}
+
 variable "applications" {
   type        = list(string)
   description = "List of applications names for which logging channels should be created. See: https://developers.google.com/admin-sdk/reports/reference/rest/v1/activities/watch#ApplicationName"
