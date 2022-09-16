@@ -1,4 +1,4 @@
-name: unit tests and pylint
+name: unit tests and pylint, main module
 
 on: [push]
 

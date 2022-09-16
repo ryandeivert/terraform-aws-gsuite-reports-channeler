@@ -1,6 +1,6 @@
 resource "aws_cloudwatch_log_group" "channeler" {
   name              = "/aws/states/${local.channel_function_name}"
-  retention_in_days = 14
+  retention_in_days = var.cloudwatch_logs_retention_in_days
 }
 
 # State Machine for gsuite channeler

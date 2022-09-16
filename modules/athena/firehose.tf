@@ -5,7 +5,8 @@ locals {
 }
 
 resource "aws_cloudwatch_log_group" "firehose" {
-  name = "/aws/kinesisfirehose/${local.resource_name}"
+  name              = "/aws/kinesisfirehose/${local.resource_name}"
+  retention_in_days = var.cloudwatch_logs_retention_in_days
 }
 
 resource "aws_cloudwatch_log_stream" "firehose" {
@@ -54,6 +55,27 @@ resource "aws_kinesis_firehose_delivery_stream" "s3" {
         parameters {
           parameter_name  = "JsonParsingEngine"
           parameter_value = "JQ-1.6"
+        }
+      }
+
+      dynamic "processors" {
+        for_each = var.deduplicate == true ? [1] : []
+
+        content {
+          type = "Lambda"
+
+          parameters {
+            parameter_name  = "LambdaArn"
+            parameter_value = module.deduplication_function_alias[0].lambda_alias_arn
+          }
+          parameters {
+            parameter_name  = "BufferIntervalInSeconds"
+            parameter_value = 300 # seconds, default = 60
+          }
+          parameters {
+            parameter_name  = "BufferSizeInMBs"
+            parameter_value = 3
+          }
         }
       }
     }
@@ -163,8 +185,21 @@ data "aws_iam_policy_document" "firehose" {
       condition {
         test     = "StringLike"
         variable = "kms:EncryptionContext:aws:s3:arn"
-        values   = ["${local.s3_bucket_arn}/${local.table_location}/*"]
+        values   = ["${local.s3_bucket_arn}/${local.table_location}*"]
       }
+    }
+  }
+
+  dynamic "statement" {
+    for_each = var.deduplicate == true ? [1] : []
+
+    content {
+      actions = [
+        "lambda:InvokeFunction",
+        "lambda:GetFunctionConfiguration",
+      ]
+
+      resources = [module.deduplication_function_alias[0].lambda_alias_arn]
     }
   }
 }

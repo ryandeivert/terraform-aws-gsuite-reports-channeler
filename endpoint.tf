@@ -1,14 +1,17 @@
 
 module "endpoint_function" {
-  source = "terraform-aws-modules/lambda/aws"
+  source  = "terraform-aws-modules/lambda/aws"
+  version = "~> 4.0.0"
 
-  function_name = "${var.prefix}-gsuite-admin-reports-endpoint"
-  role_name     = "${var.prefix}-gsuite-admin-reports-endpoint-role"
-  handler       = "main.handler"
-  runtime       = "python3.9"
-  publish       = true
-  memory_size   = 128
-  timeout       = 30
+  function_name                     = "${var.prefix}-gsuite-admin-reports-endpoint"
+  role_name                         = "${var.prefix}-gsuite-admin-reports-endpoint-role"
+  handler                           = "main.handler"
+  runtime                           = "python3.9"
+  publish                           = true
+  memory_size                       = 128
+  timeout                           = 30
+  cloudwatch_logs_retention_in_days = var.cloudwatch_logs_retention_in_days
+
   source_path = [
     {
       path             = "${path.module}/functions/endpoint"
@@ -26,7 +29,8 @@ module "endpoint_function" {
 }
 
 module "endpoint_function_alias" {
-  source = "terraform-aws-modules/lambda/aws//modules/alias"
+  source  = "terraform-aws-modules/lambda/aws//modules/alias"
+  version = "~> 4.0.0"
 
   name             = "production"
   description      = "production alias for ${module.endpoint_function.lambda_function_name}"

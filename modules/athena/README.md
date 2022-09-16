@@ -60,3 +60,41 @@ module "athena" {
   })
 }
 ```
+
+### Perform Best-Effort Deduplication
+
+Setting the `deduplicate` variable to `true` will enabling best-effort deduplication of logs.
+
+This feature applies [Kinesis Data Transformation](https://docs.aws.amazon.com/firehose/latest/dev/data-transformation.html)
+to the Firehose resource. It uses a Lambda function to inspect incoming logs, and mark any
+that appear to be duplicates as `Dropped`.
+
+```hcl
+module "athena" {
+  source = "ryandeivert/gsuite-reports-channeler/aws//modules/athena"
+
+  prefix         = "<custom-prefix>"
+  table_name     = "important-user-logs"
+  s3_bucket_name = "<s3-bucket-name>"
+  s3_sse_kms_arn = "<s3-kms-key-arn>"
+  sns_topic_arn  = module.channeler.sns_topic_arn # channeler module instance
+  deduplicate    = true 
+}
+```
+
+#### How It Works
+
+Incoming logs contain values for `id.time` and `id.uniqueQualifier` which, according to [Google documentation](https://developers.google.com/admin-sdk/reports/v1/guides/push),
+should be useful in uniquely identifying logs.
+
+The Lambda function will construct a composite key from the `id.time` and `id.uniqueQualifier` values in each log,
+and use this composite key in a best-effort deduplication strategy.
+
+In testing, with deduplication disabled, **roughly 4%** of resulting logs were duplicates. A second instance of
+this module was then added alongside the existing module, with deduplication enabled. The total unique events in
+each pipeline remained the same, while duplicate records in the "deduplicated" results dropped to **roughly 0.5%**
+(an 80% reduction in total duplicates).
+
+#### Notes
+- The deduplication feature should be used at your own risk, and no guarantees are offered as to the validity of dropped events.
+- The Kinesis Data Transformation feature may incur additional cost.
