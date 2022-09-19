@@ -47,7 +47,7 @@ def _dedupe(records: list[dict]) -> tuple[list[dict], int]:
         try:
             uniq_key = f"{data['id']['time']}:{data['id']['uniqueQualifier']}"
         except KeyError as err:
-            LOGGER.warning('Unique key could not be contstructed: %s (id: %s)', err, data.get('id'))
+            LOGGER.warning('Unique key could not be constructed: %s (id: %s)', err, data.get('id'))
         else:
             if uniq_key not in ids:
                 ids.add(uniq_key)
