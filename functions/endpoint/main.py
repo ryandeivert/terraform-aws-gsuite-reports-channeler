@@ -129,6 +129,23 @@ def log_event_lag_time_metric(received_time: datetime, body: dict):
     )
 
 
+def send_to_sns(body: dict, attributes: dict):
+    try:
+        response = SNS_TOPIC.publish(
+            Message=json.dumps(body, separators=(',', ':')),
+            # Add some message attributes to support SNS subscription filtering
+            MessageAttributes=attributes
+        )
+    except SNS_TOPIC.meta.client.exceptions.InvalidParameterException as err:
+        # This message exceeds SNS limits and we cannot process it as-is
+        if 'Message too long' in err.response['Error']['Message']:
+            metrics.add_metric(name='DroppedEvents', unit=MetricUnit.Count, value=1)
+            return
+        raise err # raise any other exception of this type
+
+    LOGGER.debug('Published message to sns: %s', response)
+
+
 @metrics.log_metrics
 def handler(event: dict, _):
     headers = event['headers']
@@ -170,10 +187,4 @@ def handler(event: dict, _):
             actual_size
         )
 
-    response = SNS_TOPIC.publish(
-        Message=json.dumps(body, separators=(',', ':')),
-        # Add some message attributes to support SNS subscription filtering
-        MessageAttributes=attributes
-    )
-
-    LOGGER.debug('Published message to sns: %s', response)
+    send_to_sns(body, attributes)
