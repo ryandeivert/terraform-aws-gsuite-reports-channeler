@@ -341,3 +341,14 @@ def test_log_event_lag_time_metric_no_time():
     with mock.patch.object(Metrics, 'add_metric') as metric_mock:
         main.log_event_lag_time_metric(MOCK_RECEIVED_TIME, {})
         metric_mock.assert_not_called()
+
+
+def test_send_to_sns():
+    with mock.patch.object(main.SNS_TOPIC, 'publish') as publish_mock, \
+            mock.patch.object(Metrics, 'add_metric') as metric_mock:
+        publish_mock.side_effect = main.SNS_TOPIC.meta.client.exceptions.InvalidParameterException(
+            {'Error': {'Code': 'InvalidParameter', 'Message': 'Invalid parameter: Message too long'}},
+            'Publish'
+        )
+        main.send_to_sns({}, {})
+        metric_mock.assert_called_with(name='DroppedEvents', unit=MetricUnit.Count, value=1)
