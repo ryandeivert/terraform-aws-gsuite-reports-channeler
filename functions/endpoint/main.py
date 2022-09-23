@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 
 from aws_lambda_powertools import Metrics
 from aws_lambda_powertools.metrics import MetricUnit
+from aws_lambda_powertools.utilities.data_classes import event_source, LambdaFunctionUrlEvent
 import boto3
 
 HEADER_CHANNEL_TOKEN = 'x-goog-channel-token'           # custom token, must match expected token
@@ -14,6 +15,7 @@ HEADER_CHANNEL_EXPIRATION = 'x-goog-channel-expiration' # "Wed, 27 Jul 2022 07:2
 HEADER_RESOURCE_STATE = 'x-goog-resource-state'         # "sync", "download", etc
 HEADER_RESOURCE_URI = 'x-goog-resource-uri'             # path of resource (eg: applicationName)
 HEADER_CONTENT_LENGTH = 'content-length'                # integer for body size
+EVENT_TYPE_SYNC = 'sync'
 
 EXPIRATION_FORMAT = '%a, %d %b %Y %H:%M:%S %Z' # header value: "Wed, 27 Jul 2022 07:24:08 GMT"
 
@@ -147,44 +149,44 @@ def send_to_sns(body: dict, attributes: dict):
 
 
 @metrics.log_metrics
-def handler(event: dict, _):
-    headers = event['headers']
-
+@event_source(data_class=LambdaFunctionUrlEvent) # pylint:disable=no-value-for-parameter
+def handler(event: LambdaFunctionUrlEvent, _):
     received_time = time_now()
 
-    if headers.get(HEADER_CHANNEL_TOKEN) != EXPECTED_CHANNEL_TOKEN:
+    if event.get_header_value(HEADER_CHANNEL_TOKEN) != EXPECTED_CHANNEL_TOKEN:
         raise RuntimeError('Invalid event', event)
 
-    if headers.get(HEADER_RESOURCE_STATE) == 'sync':
+    if event.get_header_value(HEADER_RESOURCE_STATE) == EVENT_TYPE_SYNC:
         LOGGER.debug('Skipping sync event: %s', event)
         return  # not an error
 
-    if 'body' not in event:
-        raise RuntimeError('body not found in event', event)
+    # Raises KeyError if "body" is missing
+    body = event.json_body
 
     # Log the TTL for this channel
-    log_expiration_metric(received_time, headers.get(HEADER_CHANNEL_EXPIRATION))
+    log_expiration_metric(received_time, event.get_header_value(HEADER_CHANNEL_EXPIRATION))
 
-    LOGGER.debug('Received valid message: %s', {header: value for header, value in headers.items() if header.startswith('x-goog-')})
+    LOGGER.debug(
+        'Received valid message with headers: %s',
+        {header: value for header, value in event.headers.items() if header.startswith('x-goog-')}
+    )
     metrics.add_metric(name='ValidEvents', unit=MetricUnit.Count, value=1)
-
-    body = json.loads(event['body'])
 
     log_event_lag_time_metric(received_time, body)
 
-    app_name = app_from_event(body, headers)
-    attributes = extract_attributes(app_name, body, headers)
+    app_name = app_from_event(body, event.headers)
+    attributes = extract_attributes(app_name, body, event.headers)
 
     metrics.add_dimension(name='application', value=app_name)
 
-    expected_size = int(headers.get(HEADER_CONTENT_LENGTH, 0))
-    actual_size = len(event['body'])
-    if expected_size != actual_size:
+    expected_size = int(event.get_header_value(HEADER_CONTENT_LENGTH, 0))
+    raw_body_size = len(event.body)
+    if expected_size != raw_body_size:
         metrics.add_metric(name='MismatchedContentLength', unit=MetricUnit.Count, value=1)
         LOGGER.warning(
             'Found mismatched content-length (%d) and body size (%d)',
             expected_size,
-            actual_size
+            raw_body_size
         )
 
     send_to_sns(body, attributes)

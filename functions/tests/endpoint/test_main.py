@@ -65,7 +65,7 @@ class TestEndpoint:
         assert 'Skipping sync event' in caplog.text
 
     def test_missing_body(self):
-        with pytest.raises(RuntimeError) as excinfo:
+        with pytest.raises(KeyError):
             main.handler(
                 {
                     'headers': {
@@ -74,7 +74,6 @@ class TestEndpoint:
                 },
                 None
             )
-        assert 'body not found in event' in str(excinfo.value)
 
     def test_invalid_size(self, caplog, sns):  # pylint: disable=unused-argument
         main.handler(
