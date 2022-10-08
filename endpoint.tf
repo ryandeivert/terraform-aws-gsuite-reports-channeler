@@ -8,9 +8,9 @@ module "endpoint_function" {
   handler                           = "main.handler"
   runtime                           = "python3.9"
   publish                           = true
-  memory_size                       = 128
-  timeout                           = 30
-  cloudwatch_logs_retention_in_days = var.cloudwatch_logs_retention_in_days
+  memory_size                       = var.lambda_settings.endpoint.memory
+  timeout                           = var.lambda_settings.endpoint.timeout
+  cloudwatch_logs_retention_in_days = var.lambda_settings.endpoint.log_retention_days
 
   source_path = [
     {
@@ -21,7 +21,7 @@ module "endpoint_function" {
 
   environment_variables = {
     PREFIX                       = var.prefix
-    LOG_LEVEL                    = var.log_level
+    LOG_LEVEL                    = var.lambda_settings.endpoint.log_level
     CHANNEL_TOKEN                = random_password.token.result
     SNS_TOPIC_ARN                = aws_sns_topic.logs.arn
     POWERTOOLS_METRICS_NAMESPACE = local.metrics_namespace

@@ -13,9 +13,9 @@ module "channel_renewer_function" {
   handler                           = "main.handler"
   runtime                           = "python3.9"
   publish                           = true
-  memory_size                       = 128
-  timeout                           = 30
-  cloudwatch_logs_retention_in_days = var.cloudwatch_logs_retention_in_days
+  memory_size                       = var.lambda_settings.channel_renewer.memory
+  timeout                           = var.lambda_settings.channel_renewer.timeout
+  cloudwatch_logs_retention_in_days = var.lambda_settings.channel_renewer.log_retention_days
 
   source_path = [
     {
@@ -25,7 +25,7 @@ module "channel_renewer_function" {
   ]
 
   environment_variables = {
-    LOG_LEVEL             = var.log_level
+    LOG_LEVEL             = var.lambda_settings.channel_renewer.log_level
     CHANNEL_TOKEN         = random_password.token.result
     LAMBDA_URL            = aws_lambda_function_url.endpoint.function_url
     DELEGATION_EMAIL      = var.delegation_email

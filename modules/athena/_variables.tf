@@ -75,19 +75,34 @@ variable "filter_policy" {
   default     = null
 }
 
-variable "deduplicate" {
-  type        = bool
-  description = "Boolean to indicate if logs should be deduplicated using a best-effort strategy with Kinesis Data Transformation and an intermediary Lambda function"
-  default     = false
-}
-
-variable "log_level" {
-  type        = string
-  description = "Log level for the deployed Lambda functions. This should be a string version of the Python logging levels (eg: INFO, DEBUG, CRITICAL)"
-  default     = "INFO"
-}
-variable "cloudwatch_logs_retention_in_days" {
+variable "firehose_cloudwatch_logs_retention_in_days" {
   type        = number
-  description = "The number of days to retain log events in CloudWatch Log groups"
+  description = "The number of days to retain log events in the Firehose CloudWatch Log group"
   default     = 30
 }
+
+variable "deduplication" {
+  type = object({
+    enabled = optional(bool, false)
+    lambda = optional(object({
+      timeout            = optional(number, 30)
+      memory             = optional(number, 128)
+      log_level          = optional(string, "INFO")
+      log_retention_days = optional(number, 30)
+    }), {})
+  })
+  description = <<EOT
+deduplication = {
+  enabled = "Boolean to indicate if logs should be deduplicated using a best-effort strategy with Kinesis Data Transformation and an intermediary Lambda function"
+  lambda = {
+    timeout            = "Timeout for Lambda function"
+    memory             = "Memory, in MB, for Lambda function"
+    log_level          = "String version of the Python logging levels (eg: INFO, DEBUG, CRITICAL) "
+    log_retention_days = "Number of days for which this Lambda function's CloudWatch Logs should be retained"
+
+  }
+}
+EOT
+  default     = {}
+}
+

@@ -6,7 +6,7 @@ locals {
 
 resource "aws_cloudwatch_log_group" "firehose" {
   name              = "/aws/kinesisfirehose/${local.resource_name}"
-  retention_in_days = var.cloudwatch_logs_retention_in_days
+  retention_in_days = var.firehose_cloudwatch_logs_retention_in_days
 }
 
 resource "aws_cloudwatch_log_stream" "firehose" {
@@ -59,7 +59,7 @@ resource "aws_kinesis_firehose_delivery_stream" "s3" {
       }
 
       dynamic "processors" {
-        for_each = var.deduplicate == true ? [1] : []
+        for_each = var.deduplication.enabled == true ? [1] : []
 
         content {
           type = "Lambda"
@@ -191,7 +191,7 @@ data "aws_iam_policy_document" "firehose" {
   }
 
   dynamic "statement" {
-    for_each = var.deduplicate == true ? [1] : []
+    for_each = var.deduplication.enabled == true ? [1] : []
 
     content {
       actions = [
