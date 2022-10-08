@@ -86,6 +86,7 @@ variable "log_level" {
   description = "Log level for the deployed Lambda functions. This should be a string version of the Python logging levels (eg: INFO, DEBUG, CRITICAL)"
   default     = "INFO"
 }
+
 variable "cloudwatch_logs_retention_in_days" {
   type        = number
   description = "The number of days to retain log events in CloudWatch Log groups"
