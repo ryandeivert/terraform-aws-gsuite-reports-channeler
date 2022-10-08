@@ -85,7 +85,7 @@ variable "deduplication" {
   type = object({
     enabled = optional(bool, false)
     lambda = optional(object({
-      timeout            = optional(number, 30)
+      timeout            = optional(number, 300)
       memory             = optional(number, 128)
       log_level          = optional(string, "INFO")
       log_retention_days = optional(number, 30)
