@@ -5,7 +5,7 @@ locals {
 }
 
 module "deduplication_function" {
-  count   = var.deduplicate == true ? 1 : 0
+  count   = var.deduplication.enabled == true ? 1 : 0
   source  = "terraform-aws-modules/lambda/aws"
   version = "~> 4.0.0"
 
@@ -14,9 +14,9 @@ module "deduplication_function" {
   handler                           = "main.handler"
   runtime                           = "python3.9"
   publish                           = true
-  memory_size                       = 128
-  timeout                           = 300 # max timeout of 5 min for firehose data transformation
-  cloudwatch_logs_retention_in_days = var.cloudwatch_logs_retention_in_days
+  memory_size                       = var.deduplication.lambda.memory
+  timeout                           = min(var.deduplication.lambda.timeout, 300) # max timeout of 5 min for firehose data transformation
+  cloudwatch_logs_retention_in_days = var.deduplication.lambda.log_retention_days
 
   source_path = [
     {
@@ -26,13 +26,13 @@ module "deduplication_function" {
   ]
   environment_variables = {
     PREFIX                       = var.prefix
-    LOG_LEVEL                    = var.log_level
+    LOG_LEVEL                    = var.deduplication.lambda.log_level
     POWERTOOLS_METRICS_NAMESPACE = local.metrics_namespace
   }
 }
 
 module "deduplication_function_alias" {
-  count   = var.deduplicate == true ? 1 : 0
+  count   = var.deduplication.enabled == true ? 1 : 0
   source  = "terraform-aws-modules/lambda/aws//modules/alias"
   version = "~> 4.0.0"
 

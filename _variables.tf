@@ -64,7 +64,7 @@ lambda_settings = {
     timeout            = "Timeout for Lambda function"
     memory             = "Memory, in MB, for Lambda function"
     log_level          = "String version of the Python logging levels (eg: INFO, DEBUG, CRITICAL) "
-    log_retention_days = "Number of days for which this Lambdas CloudWatch Logs should be retained"
+    log_retention_days = "Number of days for which this Lambda function's CloudWatch Logs should be retained"
 
   }
   channel_renewer = {} # Same settings apply to this object as endpoint object above
