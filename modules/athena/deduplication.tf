@@ -7,7 +7,7 @@ locals {
 module "deduplication_function" {
   count   = var.deduplication.enabled == true ? 1 : 0
   source  = "terraform-aws-modules/lambda/aws"
-  version = "~> 4.0.0"
+  version = ">= 4.7.1, < 5.0.0"
 
   function_name                     = local.function_name
   role_name                         = "${local.function_name}-role"
@@ -34,11 +34,11 @@ module "deduplication_function" {
 module "deduplication_function_alias" {
   count   = var.deduplication.enabled == true ? 1 : 0
   source  = "terraform-aws-modules/lambda/aws//modules/alias"
-  version = "~> 4.0.0"
+  version = ">= 4.7.1, < 5.0.0"
 
   name             = "production"
   description      = "production alias for ${module.deduplication_function[0].lambda_function_name}"
   function_name    = module.deduplication_function[0].lambda_function_name
   function_version = module.deduplication_function[0].lambda_function_version
-  refresh_alias    = false
+  refresh_alias    = true
 }
