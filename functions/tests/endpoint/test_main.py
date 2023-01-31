@@ -119,160 +119,6 @@ class TestEndpoint:
         assert 'Published message to sns' in caplog.text
 
 
-EXPECTED_ATTRIBUTE_APPLICATION_CHROME = {
-    'application': {
-        'DataType': 'String',
-        'StringValue': 'chrome',
-    },
-}
-
-EXPECTED_ATTRIBUTE_ACTOR_EMAIL = {
-    'actor_email': {
-        'DataType': 'String',
-        'StringValue': 'foo@bar.com',
-    },
-}
-
-EXPECTED_ATTRIBUTE_EVENT = {
-    'event': {
-        'DataType': 'String',
-        'StringValue': 'download',
-    },
-}
-
-ATTRIBUTE_TESTS = [
-    # test-00
-    (
-        {
-            'id': {
-                'applicationName': 'admin'
-            },
-            'actor': {
-                'email': 'foo@bar.com'
-            },
-        },
-        {
-            **EXPECTED_ATTRIBUTE_APPLICATION_CHROME,
-            **EXPECTED_ATTRIBUTE_ACTOR_EMAIL,
-            **EXPECTED_ATTRIBUTE_EVENT,
-        },
-    ),
-    # test-01
-    (
-        {
-            'id': {
-                'applicationName': 'admin'
-            },
-        },
-        {
-            **EXPECTED_ATTRIBUTE_APPLICATION_CHROME,
-            **EXPECTED_ATTRIBUTE_EVENT,
-        },
-    ),
-    # test-02
-    (
-        {
-            'id': {},
-            'actor': {
-                'email': 'foo@bar.com'
-            },
-        },
-        {
-            **EXPECTED_ATTRIBUTE_APPLICATION_CHROME,
-            **EXPECTED_ATTRIBUTE_ACTOR_EMAIL,
-            **EXPECTED_ATTRIBUTE_EVENT,
-        },
-    ),
-    # test-03
-    (
-        {
-            'id': {
-                'applicationName': None
-            },
-        },
-        {
-            **EXPECTED_ATTRIBUTE_APPLICATION_CHROME,
-            **EXPECTED_ATTRIBUTE_EVENT,
-        },
-    ),
-    # test-04
-    (
-        {
-            'id': {
-                'applicationName': None
-            },
-            'actor': {
-                'email': 'foo@bar.com'
-            },
-        },
-        {
-            **EXPECTED_ATTRIBUTE_APPLICATION_CHROME,
-            **EXPECTED_ATTRIBUTE_ACTOR_EMAIL,
-            **EXPECTED_ATTRIBUTE_EVENT,
-        },
-    ),
-    # test-05
-    (
-        {
-            'id': {},
-            'actor': {
-                'email': ''
-            },
-        },
-        {
-            **EXPECTED_ATTRIBUTE_APPLICATION_CHROME,
-            **EXPECTED_ATTRIBUTE_EVENT,
-        },
-    ),
-    # test-06
-    (
-        {
-            'id': {},
-        },
-        {
-            **EXPECTED_ATTRIBUTE_APPLICATION_CHROME,
-            **EXPECTED_ATTRIBUTE_EVENT,
-        },
-    ),
-]
-
-TEST_HEADERS = {
-    'x-goog-resource-state': 'download',
-}
-
-
-@pytest.mark.parametrize('t_input, t_output', ATTRIBUTE_TESTS)
-def test_extract_attributes(t_input, t_output):
-    assert main.extract_attributes('chrome', t_input, TEST_HEADERS) == t_output
-
-
-def test_extract_attributes_no_state():
-    t_input = {
-        'id': {
-            'applicationName': None
-        },
-        'actor': {
-            'email': 'foo@bar.com'
-        },
-    }
-    assert main.extract_attributes('chrome', t_input, {}) == {
-        **EXPECTED_ATTRIBUTE_APPLICATION_CHROME,
-        **EXPECTED_ATTRIBUTE_ACTOR_EMAIL,
-    }
-
-
-def test_extract_attributes_no_app_name():
-    t_input = {
-        'actor': {
-            'email': 'foo@bar.com'
-        },
-    }
-    assert main.extract_attributes('chrome', t_input, {}) == {
-        **EXPECTED_ATTRIBUTE_APPLICATION_CHROME,
-        **EXPECTED_ATTRIBUTE_ACTOR_EMAIL,
-    }
-
-
 @pytest.mark.parametrize('body, headers, app_name', [
     (
         {
@@ -315,31 +161,22 @@ def fixture_static_time_now():
         yield time_mock
 
 
-@pytest.mark.parametrize('expiration, seconds', [
-    ('Wed, 27 Jul 2022 10:00:00 GMT', 10800), # 3 hours
-    ('Wed, 27 Jul 2022 08:30:00 GMT', 5400),  # 1 hour, 30 min
-    ('Wed, 27 Jul 2022 07:15:00 GMT', 900),   # 15 min
+@pytest.mark.parametrize('body, expiration, ttl, delta', [
+    ({'id': {'time': '2022-07-27T06:30:00.000Z'}}, 'Wed, 27 Jul 2022 10:00:00 GMT', 10800, 1800), # 3 hours / 30 min
+    ({'id': {'time': '2022-07-27T06:59:58.461Z'}}, 'Wed, 27 Jul 2022 08:30:00 GMT', 5400, 2), # 1 hour, 30 min / 2 sec (rounds up)
+    ({'id': {'time': '2022-07-27T06:30:00.000Z'}}, 'Wed, 27 Jul 2022 07:15:00 GMT', 900, 1800), # 15 min / 30 min
 ])
-def test_log_expiration_metric(expiration, seconds):
+def test_add_metrics(body, expiration, ttl, delta):
     with mock.patch.object(Metrics, 'add_metric') as metric_mock:
-        main.log_expiration_metric(MOCK_RECEIVED_TIME, expiration)
-        metric_mock.assert_called_with(name='ChannelTTL', unit=MetricUnit.Seconds, value=seconds)
+        main.add_metrics(body, MOCK_RECEIVED_TIME, expiration)
+        metric_mock.assert_any_call(name='ChannelTTL', unit=MetricUnit.Seconds, value=ttl)
+        metric_mock.assert_any_call(name='EventLagTime', unit=MetricUnit.Seconds, value=delta)
 
 
-@pytest.mark.parametrize('body, seconds', [
-    ({'id': {'time': '2022-07-27T06:30:00.000Z'}}, 1800), # 30 min
-    ({'id': {'time': '2022-07-27T06:59:58.461Z'}}, 2), # 2 sec (rounds up)
-])
-def test_log_event_lag_time_metric(body, seconds):
+def test_add_metrics_no_time():
     with mock.patch.object(Metrics, 'add_metric') as metric_mock:
-        main.log_event_lag_time_metric(MOCK_RECEIVED_TIME, body)
-        metric_mock.assert_called_with(name='EventLagTime', unit=MetricUnit.Seconds, value=seconds)
-
-
-def test_log_event_lag_time_metric_no_time():
-    with mock.patch.object(Metrics, 'add_metric') as metric_mock:
-        main.log_event_lag_time_metric(MOCK_RECEIVED_TIME, {})
-        metric_mock.assert_not_called()
+        main.add_metrics({}, MOCK_RECEIVED_TIME, None)
+        metric_mock.assert_called_once()
 
 
 def test_send_to_sns():
@@ -349,5 +186,5 @@ def test_send_to_sns():
             {'Error': {'Code': 'InvalidParameter', 'Message': 'Invalid parameter: Message too long'}},
             'Publish'
         )
-        main.send_to_sns({}, {})
+        main.send_to_sns({})
         metric_mock.assert_called_with(name='DroppedEvents', unit=MetricUnit.Count, value=1)

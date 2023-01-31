@@ -56,49 +56,45 @@ def app_from_event(body: dict, headers: dict) -> str:
     return app_name
 
 
-def extract_attributes(app_name: str, body: dict, headers: dict) -> dict:
-    """Extract various attributes for sns, like applicationName, actor email, and event name
-
-    These are used as MessageAttributes on the published message.
-
-    Note: attributes cannot contain empty values
-    """
-    attributes = {
-        'application': {
-            'DataType': 'String',
-            'StringValue': app_name
-        }
-    }
-
-    if headers.get(HEADER_RESOURCE_STATE):
-        attributes['event'] = {
-            'DataType': 'String',
-            'StringValue': headers.get(HEADER_RESOURCE_STATE)
-        }
-
-    try:
-        if body['actor']['email']:
-            attributes['actor_email'] = {
-                'DataType': 'String',
-                'StringValue': body['actor']['email']
-            }
-    except KeyError:
-        pass
-
-    return attributes
-
-
 def time_now() -> datetime:
     return datetime.now(tz=timezone.utc)
 
 
-def log_expiration_metric(received_time: datetime, expiration: str):
-    """Log number of seconds until expiration for this channel
+def add_metrics(body: dict, received_time: datetime, expiration: str):
+    """Log various metrics related to this event
+    
+    Metrics:
+      - single data point representing this event (as "ValidEvents")
+      - number of seconds until expiration for this channel (as "ChannelTTL")
+      - number of seconds between the time this event was received by us
+        and the when the event occurred (as "EventLagTime"). Reference:
+        https://support.google.com/a/answer/7061566
 
-    This can be use to create an alarm if, for some reason, a channel is not properly renewed
+    These metrics can be used to create alarms. For example, the ChannelTTL
+    metric can be used to detect if a channel has not been properly renewed
     """
-    if not expiration:
+    # Log this as a valid event
+    metrics.add_metric(name='ValidEvents', unit=MetricUnit.Count, value=1)
+
+    try:
+        event_time = body['id']['time']
+    except KeyError:
+        LOGGER.error('id.time not found in body')
+    else:
+        # Strip the trailing Z for UTC that python cannot handle well
+        event_time = event_time[:-1] if event_time.endswith('Z') else event_time
+        parsed_time = datetime.fromisoformat(event_time).replace(tzinfo=timezone.utc)
+        delta = received_time - parsed_time
+        metrics.add_metric(
+            name='EventLagTime',
+            unit=MetricUnit.Seconds,
+            value=round(delta.total_seconds())
+        )
+
+    # Log the TTL for this channel
+    if not expiration: # unlikely, but can be null
         return
+
     exp = datetime.strptime(expiration, EXPIRATION_FORMAT).replace(tzinfo=timezone.utc)
     delta = exp - received_time
     metrics.add_metric(
@@ -108,36 +104,9 @@ def log_expiration_metric(received_time: datetime, expiration: str):
     )
 
 
-def log_event_lag_time_metric(received_time: datetime, body: dict):
-    """Log number of seconds between now and the time this event occurred (lag time)
-
-    This metric helps track lag time between when an event occurred and when google
-    notifies us of it. Reference: https://support.google.com/a/answer/7061566
-    """
+def send_to_sns(body: dict):
     try:
-        event_time = body['id']['time']
-    except KeyError:
-        LOGGER.error('id.time not found in body')
-        return
-
-    # Strip the trailing Z for UTC that python cannot handle well
-    event_time = event_time[:-1] if event_time.endswith('Z') else event_time
-    parsed_time = datetime.fromisoformat(event_time).replace(tzinfo=timezone.utc)
-    delta = received_time - parsed_time
-    metrics.add_metric(
-        name='EventLagTime',
-        unit=MetricUnit.Seconds,
-        value=round(delta.total_seconds())
-    )
-
-
-def send_to_sns(body: dict, attributes: dict):
-    try:
-        response = SNS_TOPIC.publish(
-            Message=json.dumps(body, separators=(',', ':')),
-            # Add some message attributes to support SNS subscription filtering
-            MessageAttributes=attributes
-        )
+        response = SNS_TOPIC.publish(Message=json.dumps(body, separators=(',', ':')))
     except SNS_TOPIC.meta.client.exceptions.InvalidParameterException as err:
         # This message exceeds SNS limits and we cannot process it as-is
         if 'Message too long' in err.response['Error']['Message']:
@@ -160,22 +129,17 @@ def handler(event: LambdaFunctionUrlEvent, _):
         LOGGER.debug('Skipping sync event: %s', event)
         return  # not an error
 
-    # Raises KeyError if "body" is missing
-    body = event.json_body
-
-    # Log the TTL for this channel
-    log_expiration_metric(received_time, event.get_header_value(HEADER_CHANNEL_EXPIRATION))
-
     LOGGER.debug(
         'Received valid message with headers: %s',
         {header: value for header, value in event.headers.items() if header.startswith('x-goog-')}
     )
-    metrics.add_metric(name='ValidEvents', unit=MetricUnit.Count, value=1)
 
-    log_event_lag_time_metric(received_time, body)
+    # Raises KeyError if "body" is missing
+    body = event.json_body
+
+    add_metrics(body, received_time, event.get_header_value(HEADER_CHANNEL_EXPIRATION))
 
     app_name = app_from_event(body, event.headers)
-    attributes = extract_attributes(app_name, body, event.headers)
 
     metrics.add_dimension(name='application', value=app_name)
 
@@ -189,4 +153,4 @@ def handler(event: LambdaFunctionUrlEvent, _):
             raw_body_size
         )
 
-    send_to_sns(body, attributes)
+    send_to_sns(body)

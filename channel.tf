@@ -6,7 +6,7 @@ locals {
 
 module "channel_renewer_function" {
   source  = "terraform-aws-modules/lambda/aws"
-  version = ">= 4.7.1, < 5.0.0"
+  version = "~> 4.9.0"
 
   function_name                     = local.channel_function_name
   role_name                         = "${local.channel_function_name}-role"
@@ -37,7 +37,7 @@ module "channel_renewer_function" {
 
 module "channel_renewer_function_alias" {
   source  = "terraform-aws-modules/lambda/aws//modules/alias"
-  version = ">= 4.7.1, < 5.0.0"
+  version = "~> 4.9.0"
 
   name             = "production"
   description      = "production alias for ${module.channel_renewer_function.lambda_function_name}"

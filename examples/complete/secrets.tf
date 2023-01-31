@@ -58,3 +58,21 @@ data "aws_iam_policy_document" "secrets" {
     resources = ["*"]
   }
 }
+
+resource "aws_secretsmanager_secret" "this" {
+  name       = "${local.prefix}-google-reports-api-jwt"
+  kms_key_id = aws_kms_key.secrets.arn
+}
+
+resource "aws_secretsmanager_secret_version" "this" {
+  secret_id     = aws_secretsmanager_secret.this.id
+  secret_string = try(file(var.gsuite_reports_jwt_file), "")
+
+  # Remove below lifecycle block if rotating the JWT value, then run:
+  # terraform apply -var="gsuite_reports_jwt_file=/path/to/jwt_file.json"
+  lifecycle {
+    ignore_changes = [
+      secret_string
+    ]
+  }
+}

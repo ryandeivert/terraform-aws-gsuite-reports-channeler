@@ -58,14 +58,22 @@ Example filters:
 
 * Resulting table will include events from both drive + calendar apps for the user "important@domain.com"
   {
-     "application": ["drive", "calendar"],
-     "actor_email": ["important@domain.com"]
+    "id": {
+      "applicationName": ["drive", "calendar"]
+    },
+    "actor": {
+      "email": ["important@domain.com"]
+    }
   }
 
 * Resulting table will include events from both admin + token apps for all users EXCEPT "noisy@domain.com"
   {
-     "application": ["admin", "token"],
-     "actor_email": [{"anything-but": "noisy@domain.com"}]
+    "id": {
+      "applicationName": ["admin", "token"]
+    },
+    "actor": {
+      "email": [{"anything-but": "noisy@domain.com"}]
+    }
   }
 
 */

@@ -40,7 +40,9 @@ module "athena" {
   s3_sse_kms_arn = "<s3-kms-key-arn>"
   sns_topic_arn  = module.channeler.sns_topic_arn # channeler module instance
   filter_policy = jsonencode({
-    application = ["admin", "token"]
+    id = {
+      applicationName = ["admin", "token"]
+    }
   })
 }
 ```
@@ -56,7 +58,9 @@ module "athena" {
   s3_sse_kms_arn = "<s3-kms-key-arn>"
   sns_topic_arn  = module.channeler.sns_topic_arn # channeler module instance
   filter_policy = jsonencode({
-    actor_email = ["important@domain.com"]
+    actor = {
+      email = ["important@domain.com"]
+    }
   })
 }
 ```

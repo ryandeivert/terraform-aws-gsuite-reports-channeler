@@ -1,8 +1,6 @@
 /*
 
-Module configuration for the gsuite log channeler
-
-Note that the secret referenced was manually added to secrets manager
+Example module configuration for the gsuite log channeler
 
 */
 
@@ -21,10 +19,11 @@ module "channeler" {
   prefix           = local.prefix
   delegation_email = "svc-acct-email@domain.com"
 
-  # NOTE: this secret was manually added to secrets manager
-  secret_name = "google-reports-jwt"
+  secret_name = aws_secretsmanager_secret.this.name
 
   # NOTE: the above secret MUST be added to Secrets Manager before the below list
   # can have any entries. Otherwise applies will fail until the secret is available.
   applications = ["admin"]
+
+  depends_on = [aws_secretsmanager_secret.this]
 }

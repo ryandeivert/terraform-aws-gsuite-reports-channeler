@@ -1,7 +1,7 @@
 
 module "endpoint_function" {
   source  = "terraform-aws-modules/lambda/aws"
-  version = ">= 4.7.1, < 5.0.0"
+  version = "~> 4.9.0"
 
   function_name                     = "${var.prefix}-gsuite-admin-reports-endpoint"
   role_name                         = "${var.prefix}-gsuite-admin-reports-endpoint-role"
@@ -30,7 +30,7 @@ module "endpoint_function" {
 
 module "endpoint_function_alias" {
   source  = "terraform-aws-modules/lambda/aws//modules/alias"
-  version = ">= 4.7.1, < 5.0.0"
+  version = "~> 4.9.0"
 
   name             = "production"
   description      = "production alias for ${module.endpoint_function.lambda_function_name}"
