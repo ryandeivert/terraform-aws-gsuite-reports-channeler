@@ -6,6 +6,7 @@ resource "aws_sns_topic_subscription" "firehose" {
   endpoint              = aws_kinesis_firehose_delivery_stream.s3.arn
   subscription_role_arn = aws_iam_role.sns_firehose_role.arn
   raw_message_delivery  = true
+  filter_policy_scope   = "MessageBody"
   filter_policy         = var.filter_policy # default = null
 }
 
