@@ -3,16 +3,14 @@ resource "aws_cloudwatch_event_rule" "failures" {
   name        = "${local.channel_function_name}-sfn-failures"
   description = "Capture any failures in the gsuite-channeler step function and restart it using the Lambda"
 
-  event_pattern = <<EOF
-{
-  "source": ["aws.states"],
-  "detail-type": ["Step Functions Execution Status Change"],
-  "detail": {
-    "status": ["FAILED"],
-    "stateMachineArn": ["${aws_sfn_state_machine.channeler.arn}"]
-  }
-}
-EOF
+  event_pattern = jsonencode({
+    source      = ["aws.states"]
+    detail-type = ["Step Functions Execution Status Change"]
+    detail = {
+      status          = ["FAILED"]
+      stateMachineArn = [aws_sfn_state_machine.channeler.arn]
+    }
+  })
 }
 
 resource "aws_cloudwatch_event_target" "lambda" {
@@ -28,7 +26,7 @@ resource "aws_cloudwatch_event_target" "lambda" {
     input_template = <<EOF
 {
   "input": <input>,
-	"lambda_action": "recover"
+  "lambda_action": "recover"
 }
 EOF
   }
