@@ -4,49 +4,76 @@ locals {
   state_machine_arn     = "arn:aws:states:${local.region}:${local.account_id}:stateMachine:${local.channel_function_name}"
 }
 
-module "channel_renewer_function" {
-  source  = "terraform-aws-modules/lambda/aws"
-  version = "~> 4.9.0"
+moved {
+  from = module.channel_renewer_function.aws_cloudwatch_log_group.lambda[0]
+  to   = aws_cloudwatch_log_group.channeler_lambda
+}
+moved {
+  from = module.channel_renewer_function.aws_iam_role.lambda[0]
+  to   = aws_iam_role.channeler
+}
 
-  function_name                     = local.channel_function_name
-  role_name                         = "${local.channel_function_name}-role"
-  handler                           = "main.handler"
-  runtime                           = "python3.9"
-  publish                           = true
-  memory_size                       = var.lambda_settings.channel_renewer.memory
-  timeout                           = var.lambda_settings.channel_renewer.timeout
-  cloudwatch_logs_retention_in_days = var.lambda_settings.channel_renewer.log_retention_days
+moved {
+  from = module.channel_renewer_function.aws_lambda_function.this[0]
+  to   = aws_lambda_function.channeler
+}
 
-  source_path = [
-    {
-      path             = "${path.module}/functions/channel_renewer"
-      pip_requirements = true
+moved {
+  from = module.channel_renewer_function_alias.aws_lambda_alias.with_refresh[0]
+  to   = aws_lambda_alias.channeler
+}
+
+resource "aws_cloudwatch_log_group" "channeler_lambda" {
+  name              = "/aws/lambda/${local.channel_function_name}"
+  retention_in_days = var.lambda_settings.channel_renewer.log_retention_days
+}
+
+resource "aws_iam_role" "channeler" {
+  name               = "${local.channel_function_name}-role"
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume_role.json
+}
+
+resource "aws_lambda_function" "channeler" {
+  function_name    = local.channel_function_name
+  handler          = "main.handler"
+  memory_size      = var.lambda_settings.channel_renewer.memory
+  publish          = true
+  role             = aws_iam_role.channeler.arn
+  runtime          = "python3.9"
+  timeout          = var.lambda_settings.channel_renewer.timeout
+  filename         = data.archive_file.channeler.output_path
+  source_code_hash = data.archive_file.channeler.output_base64sha256
+
+  # Public Lambda layer corresponding to semantic version v2.84.0 of oogle-api-python-client
+  layers = ["arn:aws:lambda:${local.region}:770693421928:layer:Klayers-p39-google-api-python-client:1"]
+
+  environment {
+    variables = {
+      LOG_LEVEL             = var.lambda_settings.channel_renewer.log_level
+      CHANNEL_TOKEN         = random_password.token.result
+      LAMBDA_URL            = aws_lambda_function_url.endpoint.function_url
+      DELEGATION_EMAIL      = var.delegation_email
+      SECRET_NAME           = var.secret_name
+      REFRESH_THRESHOLD_MIN = var.refresh_treshold_min
+      STATE_MACHINE_ARN     = local.state_machine_arn
     }
-  ]
-
-  environment_variables = {
-    LOG_LEVEL             = var.lambda_settings.channel_renewer.log_level
-    CHANNEL_TOKEN         = random_password.token.result
-    LAMBDA_URL            = aws_lambda_function_url.endpoint.function_url
-    DELEGATION_EMAIL      = var.delegation_email
-    SECRET_NAME           = var.secret_name
-    REFRESH_THRESHOLD_MIN = var.refresh_treshold_min
-    STATE_MACHINE_ARN     = local.state_machine_arn
   }
 }
 
-module "channel_renewer_function_alias" {
-  source  = "terraform-aws-modules/lambda/aws//modules/alias"
-  version = "~> 4.9.0"
-
+resource "aws_lambda_alias" "channeler" {
+  description      = "production alias for ${aws_lambda_function.channeler.function_name}"
+  function_name    = aws_lambda_function.channeler.function_name
+  function_version = aws_lambda_function.channeler.version
   name             = "production"
-  description      = "production alias for ${module.channel_renewer_function.lambda_function_name}"
-  function_name    = module.channel_renewer_function.lambda_function_name
-  function_version = module.channel_renewer_function.lambda_function_version
-  refresh_alias    = true
 }
 
-data "aws_iam_policy_document" "channel_renewer" {
+data "archive_file" "channeler" {
+  type        = "zip"
+  source_dir  = "${path.module}/functions/channel_renewer"
+  output_path = "${path.module}/builds/channel_renewer.zip"
+}
+
+data "aws_iam_policy_document" "channeler" {
   statement {
     effect = "Allow"
     actions = [
@@ -68,12 +95,22 @@ data "aws_iam_policy_document" "channel_renewer" {
     actions   = ["secretsmanager:GetSecretValue"]
     resources = ["arn:aws:secretsmanager:${local.region}:${local.account_id}:secret:${var.secret_name}*"]
   }
+  statement {
+    effect = "Allow"
+    actions = [
+      "logs:CreateLogGroup",
+      "logs:CreateLogStream",
+      "logs:PutLogEvents",
+    ]
+    resources = [
+      "${aws_cloudwatch_log_group.channeler_lambda.arn}:*",
+      "${aws_cloudwatch_log_group.channeler_lambda.arn}:*:*",
+    ]
+  }
 }
 
-# The lambda module does not support in-line policies,
-# so this resource exists outside of the module
-resource "aws_iam_role_policy" "channel_renewer" {
-  name   = "SFNAndSecrets"
-  role   = module.channel_renewer_function.lambda_role_name
-  policy = data.aws_iam_policy_document.channel_renewer.json
+resource "aws_iam_role_policy" "channeler" {
+  name   = "DefaultPolicy"
+  role   = aws_iam_role.channeler.name
+  policy = data.aws_iam_policy_document.channeler.json
 }

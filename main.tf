@@ -27,18 +27,14 @@ resource "aws_kms_key" "logs" {
   policy      = data.aws_iam_policy_document.kms.json
 }
 
-data "aws_iam_policy_document" "sns_kms" {
+data "aws_iam_policy_document" "lambda_assume_role" {
   statement {
-    effect    = "Allow"
-    actions   = ["sns:Publish"]
-    resources = [aws_sns_topic.logs.arn]
-  }
-  statement {
-    effect = "Allow"
-    actions = [
-      "kms:GenerateDataKey",
-      "kms:Decrypt",
-    ]
-    resources = [aws_kms_key.logs.arn]
+    effect  = "Allow"
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["lambda.amazonaws.com"]
+    }
   }
 }

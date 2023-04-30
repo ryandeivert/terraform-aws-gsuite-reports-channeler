@@ -1,4 +1,9 @@
-resource "aws_cloudwatch_log_group" "channeler" {
+moved {
+  from = aws_cloudwatch_log_group.channeler
+  to   = aws_cloudwatch_log_group.sfn
+}
+
+resource "aws_cloudwatch_log_group" "sfn" {
   name              = "/aws/states/${local.channel_function_name}"
   retention_in_days = var.sfn_cloudwatch_logs_retention_in_days
 }
@@ -9,7 +14,7 @@ resource "aws_sfn_state_machine" "channeler" {
   role_arn = aws_iam_role.sfn.arn
 
   logging_configuration {
-    log_destination        = "${aws_cloudwatch_log_group.channeler.arn}:*"
+    log_destination        = "${aws_cloudwatch_log_group.sfn.arn}:*"
     include_execution_data = false
     level                  = "ALL"
   }
@@ -30,7 +35,7 @@ resource "aws_sfn_state_machine" "channeler" {
       "OutputPath": "$.Payload",
       "Parameters": {
         "Payload.$": "$",
-        "FunctionName": "${module.channel_renewer_function_alias.lambda_alias_arn}"
+        "FunctionName": "${aws_lambda_alias.channeler.arn}"
       },
       "Retry": [
         {
@@ -91,7 +96,7 @@ data "aws_iam_policy_document" "lambda_sfn" {
   statement {
     effect    = "Allow"
     actions   = ["lambda:InvokeFunction"]
-    resources = [module.channel_renewer_function_alias.lambda_alias_arn]
+    resources = [aws_lambda_alias.channeler.arn]
   }
   statement {
     effect    = "Allow"

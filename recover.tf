@@ -17,7 +17,7 @@ resource "aws_cloudwatch_event_target" "lambda" {
   count     = var.auto_recover == true ? 1 : 0
   target_id = "${local.channel_function_name}-recover"
   rule      = aws_cloudwatch_event_rule.failures[0].name
-  arn       = module.channel_renewer_function_alias.lambda_alias_arn
+  arn       = aws_lambda_alias.channeler.arn
 
   input_transformer {
     input_paths = {
@@ -37,7 +37,7 @@ resource "aws_lambda_permission" "cloudwatch" {
   statement_id  = "CloudWatchExecution"
   principal     = "events.amazonaws.com"
   action        = "lambda:InvokeFunction"
-  function_name = module.channel_renewer_function.lambda_function_name
-  qualifier     = module.channel_renewer_function_alias.lambda_alias_name
+  function_name = aws_lambda_function.channeler.function_name
+  qualifier     = aws_lambda_alias.channeler.name
   source_arn    = aws_cloudwatch_event_rule.failures[0].arn
 }
