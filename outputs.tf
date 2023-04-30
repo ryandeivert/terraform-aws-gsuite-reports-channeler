@@ -1,20 +1,20 @@
 output "endpoint_function_name" {
-  value       = module.endpoint_function.lambda_function_name
+  value       = aws_lambda_function.endpoint.function_name
   description = "Name of Lambda function used as an endpoint for receiving events"
 }
 
 output "endpoint_function_arn" {
-  value       = module.endpoint_function.lambda_function_arn
+  value       = aws_lambda_function.endpoint.arn
   description = "ARN of Lambda function used as an endpoint for receiving events"
 }
 
 output "endpoint_function_alias_name" {
-  value       = module.endpoint_function_alias.lambda_alias_name
+  value       = aws_lambda_alias.endpoint.name
   description = "Lambda function alias name for function used as an endpoint for receiving events"
 }
 
 output "endpoint_function_alias_arn" {
-  value       = module.endpoint_function_alias.lambda_alias_arn
+  value       = aws_lambda_alias.endpoint.arn
   description = "Lambda function alias ARN for function used as an endpoint for receiving events"
 }
 
@@ -24,22 +24,22 @@ output "endpoint_function_url" {
 }
 
 output "channel_renewer_function_name" {
-  value       = module.channel_renewer_function.lambda_function_name
+  value       = aws_lambda_function.channeler.function_name
   description = "Name of Lambda function used for renewing channels"
 }
 
 output "channel_renewer_function_arn" {
-  value       = module.channel_renewer_function.lambda_function_arn
+  value       = aws_lambda_function.channeler.arn
   description = "ARN of Lambda function used for renewing channels"
 }
 
 output "channel_renewer_function_alias_name" {
-  value       = module.channel_renewer_function_alias.lambda_alias_name
+  value       = aws_lambda_alias.channeler.name
   description = "Lambda function alias name for function used for renewing channels"
 }
 
 output "channel_renewer_function_alias_arn" {
-  value       = module.channel_renewer_function_alias.lambda_alias_arn
+  value       = aws_lambda_alias.channeler.arn
   description = "Lambda function alias ARN for function used for renewing channels"
 }
 

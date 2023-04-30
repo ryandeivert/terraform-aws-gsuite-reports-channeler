@@ -66,7 +66,7 @@ resource "aws_kinesis_firehose_delivery_stream" "s3" {
 
           parameters {
             parameter_name  = "LambdaArn"
-            parameter_value = module.deduplication_function_alias[0].lambda_alias_arn
+            parameter_value = aws_lambda_alias.deduplication[0].arn
           }
           parameters {
             parameter_name  = "BufferIntervalInSeconds"
@@ -185,7 +185,7 @@ data "aws_iam_policy_document" "firehose" {
       condition {
         test     = "StringLike"
         variable = "kms:EncryptionContext:aws:s3:arn"
-        values   = ["${local.s3_bucket_arn}/${local.table_location}*"]
+        values   = ["${local.s3_bucket_arn}*"]
       }
     }
   }
@@ -199,7 +199,7 @@ data "aws_iam_policy_document" "firehose" {
         "lambda:GetFunctionConfiguration",
       ]
 
-      resources = [module.deduplication_function_alias[0].lambda_alias_arn]
+      resources = [aws_lambda_alias.deduplication[0].arn]
     }
   }
 }
