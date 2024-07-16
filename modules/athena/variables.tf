@@ -93,21 +93,22 @@ variable "deduplication" {
   type = object({
     enabled = optional(bool, false)
     lambda = optional(object({
-      timeout            = optional(number, 300)
-      memory             = optional(number, 128)
-      log_level          = optional(string, "INFO")
-      log_retention_days = optional(number, 30)
+      timeout                         = optional(number, 300)
+      memory                          = optional(number, 128)
+      log_level                       = optional(string, "INFO")
+      log_retention_days              = optional(number, 30)
+      aws_lambda_powertools_layer_arn = optional(string, null)
     }), {})
   })
   description = <<EOT
 deduplication = {
   enabled = "Boolean to indicate if logs should be deduplicated using a best-effort strategy with Kinesis Data Transformation and an intermediary Lambda function"
   lambda = {
-    timeout            = "Timeout for Lambda function"
-    memory             = "Memory, in MB, for Lambda function"
-    log_level          = "String version of the Python logging levels (eg: INFO, DEBUG, CRITICAL) "
-    log_retention_days = "Number of days for which this Lambda function's CloudWatch Logs should be retained"
-
+    timeout                         = "Timeout for Lambda function"
+    memory                          = "Memory, in MB, for Lambda function"
+    log_level                       = "String version of the Python logging levels (eg: INFO, DEBUG, CRITICAL) "
+    log_retention_days              = "Number of days for which this Lambda function's CloudWatch Logs should be retained"
+    aws_lambda_powertools_layer_arn = "ARN of python3.12 compatible Lambda Layer for aws-lambda-powertools
   }
 }
 EOT

@@ -4,25 +4,6 @@ locals {
   metrics_namespace = "gsuite-logs-channeler"
 }
 
-moved {
-  from = module.deduplication_function[0].aws_cloudwatch_log_group.lambda[0]
-  to   = aws_cloudwatch_log_group.deduplication_lambda[0]
-}
-moved {
-  from = module.deduplication_function[0].aws_iam_role.lambda[0]
-  to   = aws_iam_role.deduplication[0]
-}
-
-moved {
-  from = module.deduplication_function[0].aws_lambda_function.this[0]
-  to   = aws_lambda_function.deduplication[0]
-}
-
-moved {
-  from = module.deduplication_function_alias[0].aws_lambda_alias.with_refresh[0]
-  to   = aws_lambda_alias.deduplication[0]
-}
-
 resource "aws_cloudwatch_log_group" "deduplication_lambda" {
   count             = var.deduplication.enabled == true ? 1 : 0
   name              = "/aws/lambda/${local.function_name}"
@@ -55,14 +36,19 @@ resource "aws_lambda_function" "deduplication" {
   memory_size      = var.deduplication.lambda.memory
   publish          = true
   role             = aws_iam_role.deduplication[0].arn
-  runtime          = "python3.9"
+  runtime          = "python3.12"
   timeout          = min(var.deduplication.lambda.timeout, 300) # max timeout of 5 min for firehose data transformation
   filename         = data.archive_file.deduplication[0].output_path
   source_code_hash = data.archive_file.deduplication[0].output_base64sha256
 
-  # Public Lambda layer corresponding to semantic version v2.14.1 of aws-lambda-powertools
-  # Reference: https://awslabs.github.io/aws-lambda-powertools-python/2.14.1/#lambda-layer
-  layers = ["arn:aws:lambda:${local.region}:017000801446:layer:AWSLambdaPowertoolsPythonV2:31"]
+  layers = [
+    coalesce(
+      var.deduplication.lambda.aws_lambda_powertools_layer_arn,
+      # Default to public Lambda layer corresponding to semantic version v2.41.0 of aws-lambda-powertools
+      # Reference: https://docs.powertools.aws.dev/lambda/python/2.41.0/#lambda-layer
+      "arn:aws:lambda:${local.region}:017000801446:layer:AWSLambdaPowertoolsPythonV2:76"
+    )
+  ]
 
   environment {
     variables = {
