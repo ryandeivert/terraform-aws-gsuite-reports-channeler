@@ -1,3 +1,6 @@
+"""
+Lambda function used with Firehose Transformation to deduplicate records based
+"""
 import base64
 import json
 import logging
@@ -31,6 +34,11 @@ def handler(event: dict, _) -> dict:
 
 
 def _dedupe(records: list[dict]) -> tuple[list[dict], int]:
+    """Deduplicate a list of records based on a unique key
+
+    Args:
+        records (list[dict]): List of records to deduplicate
+    """
     ids = set()
     results = []
     dropped = 0
@@ -56,5 +64,5 @@ def _dedupe(records: list[dict]) -> tuple[list[dict], int]:
                 dropped += 1
         finally:
             results.append(output_record)
-    
+
     return results, dropped

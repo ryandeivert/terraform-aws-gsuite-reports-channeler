@@ -19,10 +19,10 @@ resource "aws_kinesis_firehose_delivery_stream" "s3" {
   name        = local.resource_name
 
   extended_s3_configuration {
-    bucket_arn      = local.s3_bucket_arn
-    role_arn        = aws_iam_role.firehose_role.arn
-    buffer_size     = 128 # MBs
-    buffer_interval = 300 # seconds
+    bucket_arn         = local.s3_bucket_arn
+    role_arn           = aws_iam_role.firehose_role.arn
+    buffering_size     = 128 # MBs
+    buffering_interval = 300 # seconds
 
     # Using a prefix that contains Dynamic Partitioning namespaces (partitionKeyFromQuery)
     # requires dynamic partitioning to be enabled for this Firehose (see below)
