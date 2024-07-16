@@ -1,0 +1,45 @@
+{
+  "Comment": "GSuite channel renewer step function",
+  "StartAt": "Wait for Expiration",
+  "States": {
+    "Wait for Expiration": {
+      "Type": "Wait",
+      "Next": "Invoke Renewer Function",
+      "TimestampPath": "$.expiration"
+    },
+    "Invoke Renewer Function": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "OutputPath": "$.Payload",
+      "Parameters": {
+        "Payload.$": "$",
+        "FunctionName": "${function_arn}"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.Unknown",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 6,
+          "BackoffRate": 2
+        }
+      ],
+      "Next": "Start SFN"
+    },
+    "Start SFN": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::states:startExecution",
+      "Parameters": {
+        "StateMachineArn": "${state_machine_arn}",
+        "Input.$": "$",
+        "Name.$": "States.Format('{}_{}', $.application, $.channel_id)"
+      },
+      "End": true
+    }
+  }
+}

@@ -4,25 +4,6 @@ locals {
   state_machine_arn     = "arn:aws:states:${local.region}:${local.account_id}:stateMachine:${local.channel_function_name}"
 }
 
-moved {
-  from = module.channel_renewer_function.aws_cloudwatch_log_group.lambda[0]
-  to   = aws_cloudwatch_log_group.channeler_lambda
-}
-moved {
-  from = module.channel_renewer_function.aws_iam_role.lambda[0]
-  to   = aws_iam_role.channeler
-}
-
-moved {
-  from = module.channel_renewer_function.aws_lambda_function.this[0]
-  to   = aws_lambda_function.channeler
-}
-
-moved {
-  from = module.channel_renewer_function_alias.aws_lambda_alias.with_refresh[0]
-  to   = aws_lambda_alias.channeler
-}
-
 resource "aws_cloudwatch_log_group" "channeler_lambda" {
   name              = "/aws/lambda/${local.channel_function_name}"
   retention_in_days = var.lambda_settings.channel_renewer.log_retention_days
@@ -39,13 +20,12 @@ resource "aws_lambda_function" "channeler" {
   memory_size      = var.lambda_settings.channel_renewer.memory
   publish          = true
   role             = aws_iam_role.channeler.arn
-  runtime          = "python3.9"
+  runtime          = "python3.12"
   timeout          = var.lambda_settings.channel_renewer.timeout
   filename         = data.archive_file.channeler.output_path
   source_code_hash = data.archive_file.channeler.output_base64sha256
 
-  # Public Lambda layer corresponding to semantic version v2.84.0 of oogle-api-python-client
-  layers = ["arn:aws:lambda:${local.region}:770693421928:layer:Klayers-p39-google-api-python-client:1"]
+  layers = [var.lambda_settings.channel_renewer.google_api_layer_arn]
 
   environment {
     variables = {

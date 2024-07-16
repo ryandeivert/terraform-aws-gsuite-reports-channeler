@@ -19,53 +19,13 @@ resource "aws_sfn_state_machine" "channeler" {
     level                  = "ALL"
   }
 
-  definition = <<EOF
-{
-  "Comment": "GSuite channel renewer step function",
-  "StartAt": "Wait for Expiration",
-  "States": {
-    "Wait for Expiration": {
-      "Type": "Wait",
-      "Next": "Invoke Renewer Function",
-      "TimestampPath": "$.expiration"
-    },
-    "Invoke Renewer Function": {
-      "Type": "Task",
-      "Resource": "arn:aws:states:::lambda:invoke",
-      "OutputPath": "$.Payload",
-      "Parameters": {
-        "Payload.$": "$",
-        "FunctionName": "${aws_lambda_alias.channeler.arn}"
-      },
-      "Retry": [
-        {
-          "ErrorEquals": [
-            "Lambda.ServiceException",
-            "Lambda.AWSLambdaException",
-            "Lambda.SdkClientException",
-            "Lambda.Unknown",
-            "Lambda.TooManyRequestsException"
-          ],
-          "IntervalSeconds": 2,
-          "MaxAttempts": 6,
-          "BackoffRate": 2
-        }
-      ],
-      "Next": "Start SFN"
-    },
-    "Start SFN": {
-      "Type": "Task",
-      "Resource": "arn:aws:states:::states:startExecution",
-      "Parameters": {
-        "StateMachineArn": "${local.state_machine_arn}",
-        "Input.$": "$",
-        "Name.$": "States.Format('{}_{}', $.application, $.channel_id)"
-      },
-      "End": true
+  definition = templatefile(
+    "${path.module}/sfn_template.tftpl",
+    {
+      function_arn      = aws_lambda_alias.channeler.arn
+      state_machine_arn = local.state_machine_arn
     }
-  }
-}
-EOF
+  )
 }
 
 data "aws_iam_policy_document" "sfn_assume_role" {

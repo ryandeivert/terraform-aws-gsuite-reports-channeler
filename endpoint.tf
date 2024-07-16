@@ -3,25 +3,6 @@ locals {
   endpoint_function_name = "${var.prefix}-gsuite-admin-reports-endpoint"
 }
 
-moved {
-  from = module.endpoint_function.aws_cloudwatch_log_group.lambda[0]
-  to   = aws_cloudwatch_log_group.endpoint_lambda
-}
-moved {
-  from = module.endpoint_function.aws_iam_role.lambda[0]
-  to   = aws_iam_role.endpoint
-}
-
-moved {
-  from = module.endpoint_function.aws_lambda_function.this[0]
-  to   = aws_lambda_function.endpoint
-}
-
-moved {
-  from = module.endpoint_function_alias.aws_lambda_alias.with_refresh[0]
-  to   = aws_lambda_alias.endpoint
-}
-
 resource "aws_cloudwatch_log_group" "endpoint_lambda" {
   name              = "/aws/lambda/${local.endpoint_function_name}"
   retention_in_days = var.lambda_settings.endpoint.log_retention_days
@@ -38,14 +19,19 @@ resource "aws_lambda_function" "endpoint" {
   memory_size      = var.lambda_settings.endpoint.memory
   publish          = true
   role             = aws_iam_role.endpoint.arn
-  runtime          = "python3.9"
+  runtime          = "python3.12"
   timeout          = var.lambda_settings.endpoint.timeout
   filename         = data.archive_file.endpoint.output_path
   source_code_hash = data.archive_file.endpoint.output_base64sha256
 
-  # Public Lambda layer corresponding to semantic version v2.14.1 of aws-lambda-powertools
-  # Reference: https://awslabs.github.io/aws-lambda-powertools-python/2.14.1/#lambda-layer
-  layers = ["arn:aws:lambda:${local.region}:017000801446:layer:AWSLambdaPowertoolsPythonV2:31"]
+  layers = [
+    coalesce(
+      var.lambda_settings.endpoint.aws_lambda_powertools_layer_arn,
+      # Default to public Lambda layer corresponding to semantic version v2.41.0 of aws-lambda-powertools
+      # Reference: https://docs.powertools.aws.dev/lambda/python/2.41.0/#lambda-layer
+      "arn:aws:lambda:${local.region}:017000801446:layer:AWSLambdaPowertoolsPythonV2:76"
+    )
+  ]
 
   environment {
     variables = {

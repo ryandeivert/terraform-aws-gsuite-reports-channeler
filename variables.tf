@@ -46,30 +46,36 @@ variable "auto_recover" {
 variable "lambda_settings" {
   type = object({
     endpoint = optional(object({
-      timeout            = optional(number, 30)
-      memory             = optional(number, 128)
-      log_level          = optional(string, "INFO")
-      log_retention_days = optional(number, 30)
+      timeout                         = optional(number, 30)
+      memory                          = optional(number, 128)
+      log_level                       = optional(string, "INFO")
+      log_retention_days              = optional(number, 30)
+      aws_lambda_powertools_layer_arn = optional(string, null)
     }), {})
-    channel_renewer = optional(object({
-      timeout            = optional(number, 30)
-      memory             = optional(number, 128)
-      log_level          = optional(string, "INFO")
-      log_retention_days = optional(number, 30)
-    }), {})
+    channel_renewer = object({
+      timeout              = optional(number, 30)
+      memory               = optional(number, 128)
+      log_level            = optional(string, "INFO")
+      log_retention_days   = optional(number, 30)
+      google_api_layer_arn = string # this is required
+    })
   })
   description = <<EOT
 lambda_settings = {
   endpoint = {
-    timeout            = "Timeout for Lambda function"
-    memory             = "Memory, in MB, for Lambda function"
-    log_level          = "String version of the Python logging levels (eg: INFO, DEBUG, CRITICAL) "
-    log_retention_days = "Number of days for which this Lambda function's CloudWatch Logs should be retained"
-
+    timeout                         = "Timeout for Lambda function"
+    memory                          = "Memory, in MB, for Lambda function"
+    log_level                       = "String version of the Python logging levels (eg: INFO, DEBUG, CRITICAL) "
+    log_retention_days              = "Number of days for which this Lambda function's CloudWatch Logs should be retained"
+    aws_lambda_powertools_layer_arn = "ARN of python3.12 compatible Lambda Layer for aws-lambda-powertools
   }
-  channel_renewer = {} # Same settings apply to this object as endpoint object above
+  channel_renewer = {
+    timeout              = "Timeout for Lambda function"
+    memory               = "Memory, in MB, for Lambda function"
+    log_level            = "String version of the Python logging levels (eg: INFO, DEBUG, CRITICAL) "
+    log_retention_days   = "Number of days for which this Lambda function's CloudWatch Logs should be retained"
+    google_api_layer_arn = "ARN of python3.12 compatible layer Lambda Layer for google-api-python-client"
+  }
 }
 EOT
-  default     = {}
 }
-
