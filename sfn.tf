@@ -1,8 +1,3 @@
-moved {
-  from = aws_cloudwatch_log_group.channeler
-  to   = aws_cloudwatch_log_group.sfn
-}
-
 resource "aws_cloudwatch_log_group" "sfn" {
   name              = "/aws/states/${local.channel_function_name}"
   retention_in_days = var.sfn_cloudwatch_logs_retention_in_days
