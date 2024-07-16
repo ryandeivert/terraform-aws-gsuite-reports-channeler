@@ -1,3 +1,7 @@
+"""
+Lambda function to process incoming Push Notifications from Google
+Reference: https://developers.google.com/admin-sdk/reports/v1/guides/push
+"""
 from datetime import datetime, timezone
 import json
 import logging
@@ -31,6 +35,12 @@ SNS_TOPIC = boto3.resource('sns').Topic(os.environ['SNS_TOPIC_ARN'])
 
 
 def app_from_event(body: dict, headers: dict) -> str:
+    """Extract the application name from the event body (or URL from headers)
+
+    Args:
+        body (dict): The event body
+        headers (dict): The event headers
+    """
     try:
         if body['id']['applicationName']:
             return body['id']['applicationName']
@@ -57,11 +67,17 @@ def app_from_event(body: dict, headers: dict) -> str:
 
 
 def time_now() -> datetime:
+    """Return the current time in UTC"""
     return datetime.now(tz=timezone.utc)
 
 
 def add_metrics(body: dict, received_time: datetime, expiration: str):
     """Log various metrics related to this event
+
+    Args:
+        body (dict): The event body
+        received_time (datetime): The time this event was received
+        expiration (str): The expiration time for this channel
     
     Metrics:
       - single data point representing this event (as "ValidEvents")
@@ -105,6 +121,11 @@ def add_metrics(body: dict, received_time: datetime, expiration: str):
 
 
 def send_to_sns(body: dict):
+    """Relay this message to an SNS topic for further processing
+
+    Args:
+        body (dict): The event body
+    """
     try:
         response = SNS_TOPIC.publish(Message=json.dumps(body, separators=(',', ':')))
     except SNS_TOPIC.meta.client.exceptions.InvalidParameterException as err:
@@ -120,13 +141,18 @@ def send_to_sns(body: dict):
 @metrics.log_metrics
 @event_source(data_class=LambdaFunctionUrlEvent) # pylint:disable=no-value-for-parameter
 def handler(event: LambdaFunctionUrlEvent, _):
+    """Lambda function handler for processing incoming Push Notifications
+
+    Args:
+        event (LambdaFunctionUrlEvent): Incoming push notification from Google
+    """
     received_time = time_now()
 
     if event.get_header_value(HEADER_CHANNEL_TOKEN) != EXPECTED_CHANNEL_TOKEN:
-        raise RuntimeError('Invalid event', event)
+        raise RuntimeError('Invalid event:', event.raw_event)
 
     if event.get_header_value(HEADER_RESOURCE_STATE) == EVENT_TYPE_SYNC:
-        LOGGER.debug('Skipping sync event: %s', event)
+        LOGGER.debug('Skipping sync event: %s', event.raw_event)
         return  # not an error
 
     LOGGER.debug(
@@ -134,8 +160,9 @@ def handler(event: LambdaFunctionUrlEvent, _):
         {header: value for header, value in event.headers.items() if header.startswith('x-goog-')}
     )
 
-    # Raises KeyError if "body" is missing
     body = event.json_body
+    if not body:
+        raise RuntimeError('Empty body in event:', event.raw_event)
 
     add_metrics(body, received_time, event.get_header_value(HEADER_CHANNEL_EXPIRATION))
 

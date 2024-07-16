@@ -1,3 +1,4 @@
+# pylint: disable=missing-module-docstring,missing-class-docstring,missing-function-docstring,line-too-long,protected-access,attribute-defined-outside-init
 import os
 from unittest import mock
 

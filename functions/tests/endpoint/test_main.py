@@ -1,3 +1,4 @@
+# pylint: disable=missing-module-docstring,missing-class-docstring,missing-function-docstring,line-too-long
 from datetime import datetime, timezone
 import json
 import logging
@@ -7,7 +8,7 @@ from unittest import mock
 from aws_lambda_powertools import Metrics
 from aws_lambda_powertools.metrics import MetricUnit
 import boto3
-from moto import mock_sns
+from moto import mock_aws
 import pytest
 
 from .. import TEST_TOKEN
@@ -35,7 +36,7 @@ def fixture_env_vars():
 
 @pytest.fixture(name='sns')
 def fixture_sns(env_vars):  # pylint: disable=unused-argument
-    with mock_sns():
+    with mock_aws():
         resource = boto3.resource('sns')
         resource.create_topic(Name=TOPIC_NAME)
         main.SNS_TOPIC = resource.Topic(os.environ['SNS_TOPIC_ARN'])
@@ -65,7 +66,7 @@ class TestEndpoint:
         assert 'Skipping sync event' in caplog.text
 
     def test_missing_body(self):
-        with pytest.raises(KeyError):
+        with pytest.raises(RuntimeError):
             main.handler(
                 {
                     'headers': {

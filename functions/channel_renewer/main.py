@@ -1,3 +1,8 @@
+"""
+Lambda function to renew Google Admin (reports) SDK Push Notification channels
+using the "watch" api
+Reference: https://developers.google.com/admin-sdk/reports/v1/guides/push
+"""
 from datetime import datetime, timedelta, timezone
 import json
 import logging
@@ -22,13 +27,18 @@ def _get_secrets(secret_name: str):
 
 
 class Channeler:
-
+    """Class to perform Google Admin SDK push notification watch/stop operations"""
     def __init__(self, keydata: dict, email: str):
         self._service = self._create_service(keydata, email)
 
     @staticmethod
     def _create_service(keydata: dict, email: str):
-        """Create the google api service, which signs requests with the private key data"""
+        """Create the google api service, which signs requests with the private key data
+
+        Args:
+            keydata (dict): The private key data for the service account
+            email (str): The delegation email address for the service account
+        """
         LOGGER.debug('Creating activities service')
 
         try:
@@ -49,6 +59,12 @@ class Channeler:
             raise RuntimeError('Failed to build discovery service') from err
 
     def stop_channel(self, resource_id: str, channel_id: str):
+        """Stop an existing channel for a resource
+
+        Args:
+            resource_id (str): The resource ID for the channel
+            channel_id (str): The channel ID to stop
+        """
         LOGGER.info('Stopping channel %s for resource %s', channel_id, resource_id)
         body = {
             'resourceId': resource_id,
@@ -58,7 +74,13 @@ class Channeler:
         self._service.channels().stop(body=body).execute()  # pylint: disable=no-member
 
     def create_channel(self, app_name: str, url: str, token: str):
+        # pylint: disable=line-too-long
         """Create a new channel for activities for this app
+
+        Args:
+            app_name (str): The application name to watch
+            url (str): The URL to which notifications should be sent (endpoint Lambda)
+            token (str): Unique token that Google will include in all notifications
 
         Example result for call to watch():
         {
@@ -70,6 +92,7 @@ class Channeler:
             'expiration': '1658320774000'
         }
         """
+        # pylint: enable=line-too-long
         chan = channel.new_webhook_channel(url, token=token)
 
         action = self._service.activities().watch(  # pylint: disable=no-member
@@ -103,13 +126,12 @@ class Channeler:
 
 
 def _init_step_function(channel_info: dict):
-    """Start the step function manually for the first time
+    """Start the step function manually for the first time using channel details
 
-    When the step function is started for the very first time, a brief
-    expiration is used before continuing on.
-
-    The last state in the step function executes the step function again,
-    and inherits details the previous execution, created a chain effect
+    Args:
+        channel_info (dict): The channel information to pass to the step function
+            containing metadata such as application name, resource ID, channel ID, and
+            expiration. The expiration is used in an initial wait state of the SFN.
     """
     LOGGER.info('Starting step function: %s', channel_info)
 
@@ -122,10 +144,15 @@ def _init_step_function(channel_info: dict):
     LOGGER.info('Started step function: %s', response)
 
 
-def _stop_step_function(channeler, application: str) -> tuple[str, str]:
+def _stop_step_function(channeler: Channeler, application: str) -> tuple[str, str]:
     """Stop the step function for this application
 
-    Return the resource and channel ID for this channel from the step function context
+    Uses the resource and channel ID for this channel from the context of the
+    stopped step function to also stop the notification channel
+
+    Args:
+        channeler (Channeler): The channeler object used to stop the notification channel
+        application (str): The application name which is being stopped
     """
     LOGGER.info('Stopping step function for application: %s', application)
 
@@ -187,7 +214,6 @@ def handler(event: dict, _) -> dict:
             "channel_id": "<channel-id>",
             "expiration": "<expiration>"
         }
-
     """
     LOGGER.info('Received event: %s', event)
 
