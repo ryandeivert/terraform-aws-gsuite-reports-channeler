@@ -66,6 +66,19 @@ resource "aws_lambda_permission" "public_invoke" {
   function_url_auth_type = "NONE"
 }
 
+# In 2025, AWS added the requirement for the `lambda:InvokeFunction`
+# permission in order for public function URLs to work.
+# This is in addition to the existing `lambda:InvokeFunctionUrl` permission.
+# Reference: https://docs.aws.amazon.com/lambda/latest/dg/urls-auth.html#urls-auth-none
+resource "aws_lambda_permission" "public_invoke_2025" {
+  statement_id           = "FunctionURLAllowPublicAccess2025"
+  principal              = "*"
+  action                 = "lambda:InvokeFunction"
+  function_name          = aws_lambda_function.endpoint.function_name
+  qualifier              = aws_lambda_alias.endpoint.name
+  function_url_auth_type = "NONE"
+}
+
 # The lambda module does not support an alias (only version) for
 # public URLs, so this resource exists outside of the module
 resource "aws_lambda_function_url" "endpoint" {
