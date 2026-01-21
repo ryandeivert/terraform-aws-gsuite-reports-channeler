@@ -57,14 +57,21 @@ data "archive_file" "endpoint" {
   output_path = "${path.module}/builds/endpoint.zip"
 }
 
+resource "aws_lambda_permission" "public_access" {
+  statement_id           = "FunctionURLAllowPublicAccess"
+  principal              = "*"
+  action                 = "lambda:InvokeFunctionUrl"
+  function_name          = aws_lambda_function.endpoint.function_name
+  qualifier              = aws_lambda_alias.endpoint.name
+  function_url_auth_type = "NONE"
+}
 
-resource "aws_lambda_permission" "public_invoke" {
-  statement_id             = "FunctionURLAllowPublicAccess"
+resource "aws_lambda_permission" "invoke_action" {
+  statement_id             = "FunctionURLAllowInvokeAction"
   principal                = "*"
-  action                   = "lambda:InvokeFunctionUrl"
+  action                   = "lambda:InvokeFunction"
   function_name            = aws_lambda_function.endpoint.function_name
   qualifier                = aws_lambda_alias.endpoint.name
-  function_url_auth_type   = "NONE"
   invoked_via_function_url = true
 }
 
