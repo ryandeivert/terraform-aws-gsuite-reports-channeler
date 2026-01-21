@@ -57,26 +57,15 @@ data "archive_file" "endpoint" {
   output_path = "${path.module}/builds/endpoint.zip"
 }
 
-resource "aws_lambda_permission" "public_invoke" {
-  statement_id           = "FunctionURLAllowPublicAccess"
-  principal              = "*"
-  action                 = "lambda:InvokeFunctionUrl"
-  function_name          = aws_lambda_function.endpoint.function_name
-  qualifier              = aws_lambda_alias.endpoint.name
-  function_url_auth_type = "NONE"
-}
 
-# In 2025, AWS added the requirement for the `lambda:InvokeFunction`
-# permission in order for public function URLs to work.
-# This is in addition to the existing `lambda:InvokeFunctionUrl` permission.
-# Reference: https://docs.aws.amazon.com/lambda/latest/dg/urls-auth.html#urls-auth-none
-resource "aws_lambda_permission" "public_invoke_2025" {
-  statement_id           = "FunctionURLAllowPublicAccess2025"
-  principal              = "*"
-  action                 = "lambda:InvokeFunction"
-  function_name          = aws_lambda_function.endpoint.function_name
-  qualifier              = aws_lambda_alias.endpoint.name
-  function_url_auth_type = "NONE"
+resource "aws_lambda_permission" "public_invoke" {
+  statement_id             = "FunctionURLAllowPublicAccess"
+  principal                = "*"
+  action                   = "lambda:InvokeFunctionUrl"
+  function_name            = aws_lambda_function.endpoint.function_name
+  qualifier                = aws_lambda_alias.endpoint.name
+  function_url_auth_type   = "NONE"
+  invoked_via_function_url = true
 }
 
 # The lambda module does not support an alias (only version) for
